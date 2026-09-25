@@ -1,0 +1,104 @@
+/* Main app */
+div {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background-color: #f5f6fa;
+  color: #222;
+}
+
+/* Header */
+header {
+  background-color: #000000;
+  padding: 20px 40px;
+  border-bottom: 1px solid #ddd;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+/* Navigation */
+nav {
+  display: flex;
+  gap: 10px;
+}
+
+nav button {
+  background: none;
+  border: none;
+  padding: 10px 15px;
+  font-size: 15px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+nav button:hover {
+  background-color: #f0f0f0;
+}
+
+/* Main content */
+main {
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 0 20px;
+}
+
+main h2 {
+  margin-bottom: 30px;
+  font-size: 26px;
+  text-align: center;
+  color: #222;
+}
+
+section {
+  background-color: white;
+  padding: 25px;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+section h3 {
+  margin-top: 0;
+}
+
+/* Schedule events */
+section > div {
+  border-left: 4px solid #4f46e5;
+  background-color: #f8f8ff;
+  padding: 15px;
+  margin-top: 15px;
+  border-radius: 6px;
+}
+
+section h4 {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+
+section p {
+  margin: 5px 0;
+}
+
+/* Add Event button */
+main > button {
+  margin-top: 25px;
+  background-color: #4f46e5;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  font-size: 15px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+main > button:hover {
+  background-color: #3730a3;
+}
