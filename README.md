@@ -1,50 +1,41 @@
-# StudySync
+## Current Status
 
-StudySync is an academic planner designed to help students organize
-courses, assignments, exams, and study time in one place.
+StudySync is currently in the early development phase.
 
-## Description
+The React frontend has been developed using React, Vite, and FullCalendar.
 
-The application allows students to log academic tasks, estimate the time
-needed to complete them, assign priorities, and enter available study times.
-These inputs will be used to generate a personalized study schedule to help
-students plan and manage their workload more effectively.
+**Currently implemented frontend features:**
+
+- Interactive calendar with Month, Week, and Day views
+- Calendar navigation between dates
+- Add Event form for creating new events
+- Event titles and descriptions
+- Start and end date/time selection
+- Editing existing events
+- Deleting events
+- Validation of event titles and date/time ranges
+- Browser-based event persistence using localStorage
+
+Events are currently stored locally in the user's browser. They remain available after refreshing the page but are not yet shared between users or synchronized with a backend database.
+
+The Python backend is being developed separately from the React frontend. Backend integration and centralized database storage remain future development tasks.
 
 
-## Project Goals
 
-- Organize courses, assignments, and exams
-- Track due dates and estimated workload
-- Allow students to assign priorities to tasks
-- Allow students to enter available study times
-- Generate a personalized study schedule
-- Track completed tasks and overall progress
+### Frontend
 
-## Planned Features
+- React - User interface and component management
+- Vite - Frontend development and build tool
+- JavaScript - Frontend programming
+- CSS - Application styling
+- FullCalendar - Interactive calendar, date navigation, and event display
+- localStorage - Temporary browser-based event persistence
 
-- Course management
-- Assignment and exam management
-- Due dates and estimated duration
-- Task priorities
-- Student availability
-- Automated study schedule generation
-- Task completion tracking
-- Progress tracking
-- Calendar view
-- Event management for academic or personal events
-- Canvas integration
-- Email integration
-  
+### Backend (Under Development)
 
-## Setup and Installation
-
-### Prerequisites
-
-The following software is required:
-
-- Node.js
-- Python 3
-- Git
+- Python - Planned backend programming and application logic
+- SQLite - Planned database storage
+- Canvas REST API - Planned integration for importing courses, assignments, and due dates
 
 ### Clone the Repository
 
@@ -79,20 +70,8 @@ To exit Vite, press Ctrl + C while in the terminal.
 
 The backend is currently under development and is not yet fully connected to the React frontend.
 
-## Technology
 
-### Frontend
 
-- React - User interface
-- Vite - Frontend development and build tool
-- JavaScript - Frontend programming
-- CSS - Application styling
-
-### Backend
-
-- Python - Backend programming and application logic
-- SQLite - Database for storing application data
-- Canvas REST API - Planned integration for importing courses, assignments, and due dates
 
 
 ## Development Workflow
@@ -125,32 +104,22 @@ Team members should:
 - Create a separate branch for new features or significant changes.
 - Do not directly modify the main branch unless the team has agreed that the change should be made there.
 
-## Current Status
-
-StudySync is currently in the initial development phase.
-
-The React frontend prototype has been created using React and Vite and currently includes:
-
-- StudySync navigation
-- Current date display
-- Daily schedule display
-- Sample calendar events
-- Add Event form interface
-
-The Python backend and React frontend are currently being developed separately. Backend integration, database functionality, and persistent event data are planned for future development.
 
 ## Future Development
 
 - Connecting the React frontend to the Python backend
 - Implementing SQLite database storage
+- Replacing browser localStorage with backend-managed event persistence
 - Adding course management
 - Adding assignment and exam management
-- Implementing event creation and management
+- Implementing task priorities and estimated completion times
+- Allowing students to enter available study times
 - Implementing automated study schedule generation
 - Adding task completion and progress tracking
-- Developing the calendar interface
+- Improving calendar functionality and event categorization
 - Integrating the Canvas REST API
 - Exploring email integration
+- Supporting shared data across users
 
 ## Team Members
 
