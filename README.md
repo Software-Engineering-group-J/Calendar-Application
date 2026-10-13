@@ -1,3 +1,9 @@
+
+# StudySync
+
+![StudySync CI](https://github.com/Supazz/Calendar-Application/actions/workflows/ci.yml/badge.svg?branch=CIpipeline)
+
+
 ## Current Status
 
 StudySync is currently in the early development phase.
