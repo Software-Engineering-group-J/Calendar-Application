@@ -38,7 +38,7 @@ const styles = {
   },
   // Default blue button style (also reused for Save Changes).
   button: {
-    background: '#2563eb',
+    background: 'red',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
