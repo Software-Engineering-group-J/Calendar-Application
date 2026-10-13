@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App.jsx';
@@ -39,7 +39,34 @@ vi.mock('@fullcalendar/react/timegrid', () => ({ default: {} }));
 vi.mock('@fullcalendar/react/interaction', () => ({ default: {} }));
 vi.mock('@fullcalendar/react/themes/classic', () => ({ default: {} }));
 
-const storageKey = 'studysync-events-v2';
+function jsonResponse(data, status = 200) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => data,
+  };
+}
+
+function serverEvent(overrides = {}) {
+  return {
+    id: 'server-event-1',
+    title: 'Study session',
+    description: 'Original details',
+    start: '2026-04-15T10:00:00.000Z',
+    end: '2026-04-15T11:00:00.000Z',
+    priority: 'medium',
+    category: 'other',
+    status: 'pending',
+    completed: false,
+    ...overrides,
+  };
+}
+
+async function waitForInitialLoad() {
+  await waitFor(() => {
+    expect(screen.queryByText('Loading events...')).not.toBeInTheDocument();
+  });
+}
 
 function getDateTimeInputs() {
   return document.querySelectorAll('input[type="datetime-local"]');
@@ -58,8 +85,7 @@ function fillEventForm({ title, description = '', start, end }) {
 }
 
 beforeEach(() => {
-  localStorage.clear();
-  vi.stubGlobal('crypto', { randomUUID: vi.fn(() => 'event-1') });
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ events: [] })));
   vi.spyOn(window, 'alert').mockImplementation(() => {});
   vi.spyOn(window, 'confirm').mockReturnValue(true);
 });
@@ -71,9 +97,11 @@ afterEach(() => {
 });
 
 describe('StudySync calendar', () => {
-  it('opens and cancels the add-event form', () => {
+  it('loads events from the backend and opens and cancels the add-event form', async () => {
     render(<App />);
+    await waitForInitialLoad();
 
+    expect(fetch).toHaveBeenCalledWith('/api/events', {});
     fireEvent.click(screen.getByRole('button', { name: /add event/i }));
     expect(screen.getByRole('heading', { name: 'Add New Event' })).toBeInTheDocument();
 
@@ -81,8 +109,18 @@ describe('StudySync calendar', () => {
     expect(screen.queryByRole('heading', { name: 'Add New Event' })).not.toBeInTheDocument();
   });
 
-  it('creates an event and retains it in local storage after remounting', () => {
-    const view = render(<App />);
+  it('creates an event through the backend and displays its response', async () => {
+    const createdEvent = serverEvent({
+      id: 'created-event',
+      title: 'Biology review',
+      description: 'Chapter 4',
+    });
+    fetch
+      .mockResolvedValueOnce(jsonResponse({ events: [] }))
+      .mockResolvedValueOnce(jsonResponse(createdEvent, 201));
+    render(<App />);
+    await waitForInitialLoad();
+
     fireEvent.click(screen.getByRole('button', { name: /add event/i }));
     fillEventForm({
       title: 'Biology review',
@@ -92,22 +130,20 @@ describe('StudySync calendar', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Create Event' }));
 
-    expect(screen.getByRole('button', { name: 'Biology review' })).toBeInTheDocument();
-    expect(JSON.parse(localStorage.getItem(storageKey))).toEqual([
-      expect.objectContaining({
-        id: 'event-1',
-        title: 'Biology review',
-        extendedProps: { description: 'Chapter 4' },
-      }),
-    ]);
-
-    view.unmount();
-    render(<App />);
-    expect(screen.getByRole('button', { name: 'Biology review' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Biology review' })).toBeInTheDocument();
+    expect(fetch.mock.calls[1][0]).toBe('/api/events');
+    expect(fetch.mock.calls[1][1].method).toBe('POST');
+    expect(JSON.parse(fetch.mock.calls[1][1].body)).toEqual({
+      title: 'Biology review',
+      description: 'Chapter 4',
+      start: new Date('2026-04-15T10:00').toISOString(),
+      end: new Date('2026-04-15T11:00').toISOString(),
+    });
   });
 
-  it('prefills a new event with the date selected on the calendar', () => {
+  it('prefills a new event with the date selected on the calendar', async () => {
     render(<App />);
+    await waitForInitialLoad();
     fireEvent.click(screen.getByRole('button', { name: 'Choose date' }));
 
     const [startInput, endInput] = getDateTimeInputs();
@@ -115,8 +151,9 @@ describe('StudySync calendar', () => {
     expect(endInput.value).toBe('2026-04-15T11:00');
   });
 
-  it('rejects an event whose end is not after its start', () => {
+  it('rejects an event whose end is not after its start', async () => {
     render(<App />);
+    await waitForInitialLoad();
     fireEvent.click(screen.getByRole('button', { name: /add event/i }));
     fillEventForm({
       title: 'Invalid event',
@@ -126,23 +163,25 @@ describe('StudySync calendar', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create Event' }));
 
     expect(window.alert).toHaveBeenCalledWith('The end date must be after the start date.');
-    expect(localStorage.getItem(storageKey)).toBeNull();
+    expect(fetch).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('heading', { name: 'Add New Event' })).toBeInTheDocument();
   });
 
-  it('edits an existing event and deletes it after confirmation', () => {
-    localStorage.setItem(storageKey, JSON.stringify([
-      {
-        id: 'existing-event',
-        title: 'Study session',
-        start: '2026-04-15T10:00:00.000Z',
-        end: '2026-04-15T11:00:00.000Z',
-        extendedProps: { description: 'Original details' },
-      },
-    ]));
+  it('updates and deletes an event through the backend', async () => {
+    const existingEvent = serverEvent();
+    const updatedEvent = serverEvent({
+      title: 'Updated study session',
+      description: 'Revised details',
+      start: '2026-04-15T12:00:00.000Z',
+      end: '2026-04-15T13:00:00.000Z',
+    });
+    fetch
+      .mockResolvedValueOnce(jsonResponse({ events: [existingEvent] }))
+      .mockResolvedValueOnce(jsonResponse(updatedEvent))
+      .mockResolvedValueOnce(jsonResponse({ message: 'Event deleted successfully.' }));
     render(<App />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Study session' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Study session' }));
     expect(screen.getByRole('heading', { name: 'Edit Event' })).toBeInTheDocument();
     fillEventForm({
       title: 'Updated study session',
@@ -152,19 +191,18 @@ describe('StudySync calendar', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
 
-    expect(screen.getByRole('button', { name: 'Updated study session' })).toBeInTheDocument();
-    expect(JSON.parse(localStorage.getItem(storageKey))[0]).toEqual(
-      expect.objectContaining({
-        id: 'existing-event',
-        title: 'Updated study session',
-        extendedProps: { description: 'Revised details' },
-      }),
-    );
+    expect(await screen.findByRole('button', { name: 'Updated study session' })).toBeInTheDocument();
+    expect(fetch.mock.calls[1][0]).toBe('/api/events/server-event-1');
+    expect(fetch.mock.calls[1][1].method).toBe('PATCH');
 
     fireEvent.click(screen.getByRole('button', { name: 'Updated study session' }));
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
     expect(window.confirm).toHaveBeenCalled();
-    expect(localStorage.getItem(storageKey)).toBe('[]');
-    expect(screen.queryByRole('button', { name: 'Updated study session' })).not.toBeInTheDocument();
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(3));
+    expect(fetch.mock.calls[2][0]).toBe('/api/events/server-event-1');
+    expect(fetch.mock.calls[2][1].method).toBe('DELETE');
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Updated study session' })).not.toBeInTheDocument();
+    });
   });
 });

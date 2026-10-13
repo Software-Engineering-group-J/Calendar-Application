@@ -20,13 +20,9 @@ The React frontend has been developed using React, Vite, and FullCalendar.
 - Editing existing events
 - Deleting events
 - Validation of event titles and date/time ranges
-- Browser-based event persistence using localStorage
+- Event loading and management through the Python FastAPI backend
 
-Events are currently stored locally in the user's browser. They remain available after refreshing the page but are not yet shared between users or synchronized with a backend database.
-
-The Python backend is being developed separately from the React frontend. Backend integration and centralized database storage remain future development tasks.
-
-
+The React frontend sends event requests to the FastAPI backend. During local development, Vite proxies `/api` requests to `http://127.0.0.1:8000`. The backend currently stores events in memory, so restarting it clears them; database persistence remains future work.
 
 ### Frontend
 
@@ -35,12 +31,13 @@ The Python backend is being developed separately from the React frontend. Backen
 - JavaScript - Frontend programming
 - CSS - Application styling
 - FullCalendar - Interactive calendar, date navigation, and event display
-- localStorage - Temporary browser-based event persistence
+- FastAPI REST API - Event loading, creation, editing, and deletion
 
-### Backend (Under Development)
+### Backend
 
-- Python - Planned backend programming and application logic
-- SQLite - Planned database storage
+- Python and FastAPI - Backend API and event validation
+- In-memory event storage - Temporary; cleared when the server restarts
+- SQLite or PostgreSQL - Possible future persistent storage
 - Canvas REST API - Planned integration for importing courses, assignments, and due dates
 
 ### Clone the Repository
@@ -64,17 +61,23 @@ npm install
 
 ## Running the Application
 
-The React frontend can currently be run independently using:
+Start the backend in one terminal from the repository root:
+
+```powershell
+python -m venv backend/.venv
+.\backend\.venv\Scripts\Activate.ps1
+pip install -r backend/requirements.txt
+uvicorn backend.main:app --reload --port 8000
+```
+
+Then start the frontend in a second terminal:
 
 ```bash
+npm install
 npm run dev
 ```
 
-Vite will provide a local URL where the application can be opened in a web browser.
-
-To exit Vite, press Ctrl + C while in the terminal. 
-
-The backend is currently under development and is not yet fully connected to the React frontend.
+Open the URL printed by Vite. The backend API and interactive documentation are available at `http://127.0.0.1:8000` and `http://127.0.0.1:8000/docs`.
 
 
 
@@ -113,9 +116,7 @@ Team members should:
 
 ## Future Development
 
-- Connecting the React frontend to the Python backend
-- Implementing SQLite database storage
-- Replacing browser localStorage with backend-managed event persistence
+- Replacing in-memory event storage with SQLite or PostgreSQL
 - Adding course management
 - Adding assignment and exam management
 - Implementing task priorities and estimated completion times

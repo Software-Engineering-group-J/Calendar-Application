@@ -1,5 +1,5 @@
 // React state lets the page remember events and form inputs while it is open.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 // Main calendar component. The imports below enable different views and clicks.
 import FullCalendar from '@fullcalendar/react';
 // Month grid view (dayGridMonth).
@@ -14,9 +14,35 @@ import classicThemePlugin from '@fullcalendar/react/themes/classic';
 import '@fullcalendar/react/skeleton.css';
 import '@fullcalendar/react/themes/classic/theme.css';
 import '@fullcalendar/react/themes/classic/palette.css';
-// localStorage key. Changing it makes the app read a different set of saved events.
-// IMPORTANT: Existing events won't show under a new key unless migrated.
-const STORAGE_KEY = 'studysync-events-v2';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
+async function apiRequest(path, options = {}) {
+  const response = await fetch(`${API_BASE_URL}${path}`, options);
+
+  if (!response.ok) {
+    let message = `API request failed (${response.status}).`;
+    try {
+      const body = await response.json();
+      if (typeof body.detail === 'string') message = body.detail;
+    } catch {
+      // Keep the status-based message when the response has no JSON body.
+    }
+    throw new Error(message);
+  }
+
+  if (response.status === 204) return null;
+  return response.json();
+}
+
+function toCalendarEvent(event) {
+  return {
+    ...event,
+    extendedProps: {
+      ...(event.extendedProps || {}),
+      description: event.description || event.extendedProps?.description || '',
+    },
+  };
+}
 // EDIT HERE: All visual styling for the page and event popup.
 // Values such as padding, colors, and widths change appearance, not event logic.
 const styles = {
@@ -87,16 +113,6 @@ const styles = {
     fontFamily: 'inherit',
   },
 };
-// On first load, read saved events from THIS browser's localStorage.
-// If data is missing or invalid JSON, use an empty list instead.
-function loadEvents() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    return Array.isArray(saved) ? saved : [];
-  } catch {
-    return [];
-  }
-}
 // Format a local date for datetime-local inputs
 // datetime-local inputs need local time formatted as YYYY-MM-DDTHH:mm.
 // The timezone offset avoids showing UTC time in a local-time input.
@@ -109,8 +125,10 @@ function toDateTimeLocal(date) {
 }
 // Main React component: event state, event handlers, calendar, and form UI.
 function App() {
-  // events = calendar data; setEvents = update displayed events.
-  const [events, setEvents] = useState(loadEvents);
+  const [events, setEvents] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [apiError, setApiError] = useState('');
   // true = show popup; false = hide popup.
   const [showForm, setShowForm] = useState(false);
   // null = creating a new event; event ID = editing an existing one.
@@ -122,12 +140,24 @@ function App() {
     start: '',
     end: '',
   });
-  // SAVE EVENTS: write the new array to browser storage AND React state.
-  // NOTE: localStorage is browser-only, NOT a shared team database.
-  function saveEvents(updated) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    setEvents(updated);
-  }
+  useEffect(() => {
+    let isCurrent = true;
+
+    apiRequest('/api/events')
+      .then((result) => {
+        if (isCurrent) setEvents(result.events.map(toCalendarEvent));
+      })
+      .catch((error) => {
+        if (isCurrent) setApiError(`Unable to load events: ${error.message}`);
+      })
+      .finally(() => {
+        if (isCurrent) setIsLoading(false);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
   // ADD EVENT: initialize blank fields and open the popup.
   // If a date is clicked, use that date; otherwise use the current time.
   function openAddForm(date = new Date()) {
@@ -173,7 +203,7 @@ function App() {
     }));
   }
   // CREATE OR SAVE CHANGES: called when the form's submit button is clicked.
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     // Prevent browser's normal form submission (which reloads the page).
     e.preventDefault();
     // VALIDATION: event title must not be empty or only spaces.
@@ -193,44 +223,53 @@ function App() {
       alert('The end date must be after the start date.');
       return;
     }
-    // FullCalendar event format; ISO dates are safe to store as JSON.
     const eventData = {
-      // Keep the old ID when editing; generate a unique ID for new events.
-      id: editingId || crypto.randomUUID(),
       title: form.title.trim(),
+      description: form.description.trim(),
       start: start.toISOString(),
       end: end.toISOString(),
-      // false = show a specific time instead of an all-day event.
-      allDay: false,
-      // Custom event information, accessible through event.extendedProps.
-      extendedProps: {
-        description: form.description.trim(),
-      },
     };
-    // Existing event: replace the matching item in the events array.
-    if (editingId) {
-      saveEvents(
-        events.map((event) =>
-          event.id === editingId ? eventData : event
-        )
+
+    setIsSaving(true);
+    setApiError('');
+    try {
+      const savedEvent = await apiRequest(
+        editingId ? `/api/events/${editingId}` : '/api/events',
+        {
+          method: editingId ? 'PATCH' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(eventData),
+        },
       );
-    } else {
-      // New event: append it to the array.
-      saveEvents([...events, eventData]);
+      const calendarEvent = toCalendarEvent(savedEvent);
+
+      setEvents((current) =>
+        editingId
+          ? current.map((event) => event.id === editingId ? calendarEvent : event)
+          : [...current, calendarEvent]
+      );
+      closeForm();
+    } catch (error) {
+      setApiError(`Unable to save event: ${error.message}`);
+    } finally {
+      setIsSaving(false);
     }
-    closeForm();
   }
   // DELETE EVENT: ask for confirmation, remove the selected ID, save.
-  function handleDelete() {
+  async function handleDelete() {
     if (!editingId) return;
     const confirmed = window.confirm(
       'Are you sure you want to delete this event?'
     );
     if (!confirmed) return;
-    saveEvents(
-      events.filter((event) => event.id !== editingId)
-    );
-    closeForm();
+    setApiError('');
+    try {
+      await apiRequest(`/api/events/${editingId}`, { method: 'DELETE' });
+      setEvents((current) => current.filter((event) => event.id !== editingId));
+      closeForm();
+    } catch (error) {
+      setApiError(`Unable to delete event: ${error.message}`);
+    }
   }
   // Clicking a calendar date opens Add Event prefilled with that date.
   function handleDateClick(info) {
@@ -253,9 +292,11 @@ function App() {
           + Add Event
         </button>
       </header>
+      {apiError && <p role="alert">{apiError}</p>}
       <section>
         <h2>Team Schedule</h2>
         <p>Click a date to create an event.</p>
+        {isLoading && <p role="status">Loading events...</p>}
         {/* EDIT HERE: initialView sets month/week/day; headerToolbar controls navigation.
             events supplies saved items; dateClick adds; eventClick edits. */}
         <FullCalendar
@@ -357,8 +398,9 @@ function App() {
                 <button
                   type="submit"
                   style={styles.button}
+                  disabled={isSaving}
                 >
-                  {editingId ? 'Save Changes' : 'Create Event'}
+                  {isSaving ? 'Saving...' : editingId ? 'Save Changes' : 'Create Event'}
                 </button>
                 <button
                   type="button"
