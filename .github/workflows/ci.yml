@@ -1,0 +1,35 @@
+
+name: StudySync CI
+
+on:
+  push:
+    branches: [CIpipeline]
+  pull_request:
+    branches: [CIpipeline]
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Build and test frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build React application
+        run: npm run build
+
+      - name: Run frontend tests
+        run: npm run test:run
