@@ -1,5 +1,6 @@
 // React state lets the page remember events and form inputs while it is open.
 import { useState } from 'react';
+import { compareCalendars } from './groupEvents.js';
 // Main calendar component. The imports below enable different views and clicks.
 import FullCalendar from '@fullcalendar/react';
 // Month grid view (dayGridMonth).
@@ -121,6 +122,9 @@ function App() {
     description: '',
     start: '',
     end: '',
+    owner: 'You',
+    partner: '',
+    isGroup: false,
   });
   // SAVE EVENTS: write the new array to browser storage AND React state.
   // NOTE: localStorage is browser-only, NOT a shared team database.
@@ -140,6 +144,9 @@ function App() {
       description: '',
       start: toDateTimeLocal(start),
       end: toDateTimeLocal(end),
+      owner: 'You',
+      partner: '',
+      isGroup: false,
     });
     setShowForm(true);
   }
@@ -156,6 +163,9 @@ function App() {
       description: event.extendedProps.description || '',
       start: toDateTimeLocal(start),
       end: toDateTimeLocal(end),
+      owner: event.extendedProps.participants?.[0] || 'You',
+      partner: event.extendedProps.participants?.[1] || '',
+      isGroup: Boolean(event.extendedProps.isGroup),
     });
     setShowForm(true);
   }
@@ -193,6 +203,31 @@ function App() {
       alert('The end date must be after the start date.');
       return;
     }
+    const owner = form.owner.trim();
+    const partner = form.partner.trim();
+    if (!owner || (form.isGroup && (!partner || owner.toLowerCase() === partner.toLowerCase()))) {
+      alert('Enter a user name and, for group events, a different second user.');
+      return;
+    }
+    const participants = form.isGroup ? [owner, partner] : [owner];
+    if (form.isGroup) {
+      const compatible = compareCalendars({
+        event: { start, end },
+        users: participants.map((name) => ({
+          name,
+          events: events.filter((event) =>
+            event.id !== editingId &&
+            (event.extendedProps?.participants || ['You']).some(
+              (participant) => participant.toLowerCase() === name.toLowerCase(),
+            ),
+          ),
+        })),
+      });
+      if (!compatible) {
+        alert('These schedules are incompatible: at least one user has an overlapping event.');
+        return;
+      }
+    }
     // FullCalendar event format; ISO dates are safe to store as JSON.
     const eventData = {
       // Keep the old ID when editing; generate a unique ID for new events.
@@ -205,6 +240,8 @@ function App() {
       // Custom event information, accessible through event.extendedProps.
       extendedProps: {
         description: form.description.trim(),
+        participants,
+        isGroup: form.isGroup,
       },
     };
     // Existing event: replace the matching item in the events array.
@@ -256,6 +293,7 @@ function App() {
       <section>
         <h2>Team Schedule</h2>
         <p>Click a date to create an event.</p>
+        <p>Assign events to named users, then select Group event to check both schedules. Calendars are saved in this browser only.</p>
         {/* EDIT HERE: initialView sets month/week/day; headerToolbar controls navigation.
             events supplies saved items; dateClick adds; eventClick edits. */}
         <FullCalendar
@@ -273,6 +311,14 @@ function App() {
             right: 'dayGridMonth,timeGridWeek,timeGridDay',
           }}
           events={events}
+          eventContent={(info) => (
+            <div>
+              <strong>{info.timeText} {info.event.title}</strong>
+              {info.event.extendedProps.isGroup && (
+                <div>Group: {info.event.extendedProps.participants.join(', ')}</div>
+              )}
+            </div>
+          )}
           dateClick={handleDateClick}
           eventClick={openEditForm}
           height="auto"
@@ -294,6 +340,22 @@ function App() {
             </h2>
             {/* Submitting this form calls handleSubmit (create or update). */}
             <form onSubmit={handleSubmit}>
+              <label style={styles.label}>
+                <input type="checkbox" checked={form.isGroup}
+                  onChange={(e) => updateField('isGroup', e.target.checked)} />
+                {' '}Group event (two users)
+              </label>
+              <label style={styles.label} htmlFor="event-owner">User name</label>
+              <input id="event-owner" style={styles.input} required value={form.owner}
+                onChange={(e) => updateField('owner', e.target.value)} />
+              {form.isGroup && (
+                <>
+                  <label style={styles.label} htmlFor="event-partner">Second user name</label>
+                  <input id="event-partner" style={styles.input} required value={form.partner}
+                    onChange={(e) => updateField('partner', e.target.value)} />
+                  <p>Saving checks that both users are free for the entire event.</p>
+                </>
+              )}
               <label style={styles.label}>
                 Event Title
               </label>
