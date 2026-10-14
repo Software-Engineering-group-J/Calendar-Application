@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -11,8 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 
-# ============================================================
-# STUDYSYNC API CONFIGURATION
+# # STUDYSYNC API CONFIGURATION
 # ============================================================
 
 app = FastAPI(
@@ -25,9 +23,10 @@ app = FastAPI(
     version="1.0.0",
 )
 
-
-# Allow the React/Vite development server to access the API.
-# Add production frontend origins before deploying.
+# ============================================================
+# CORS CONFIGURATION
+# Allow the React frontend to communicate with FastAPI
+# ============================================================
 
 app.add_middleware(
     CORSMiddleware,
@@ -35,15 +34,18 @@ app.add_middleware(
         "http://localhost:5173",
         "http://localhost:5174",
         "http://localhost:5175",
+        "http://localhost:5176",
+        "http://localhost:5177",
         "http://127.0.0.1:5173",
         "http://127.0.0.1:5174",
         "http://127.0.0.1:5175",
+        "http://127.0.0.1:5176",
+        "http://127.0.0.1:5177",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 # ============================================================
 # EVENT CATEGORIES AND PRIORITIES
