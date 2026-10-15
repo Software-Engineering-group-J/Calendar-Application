@@ -56,7 +56,7 @@ const styles = {
   },
 
   button: {
-    background: '#2563eb',
+    background: 'blue',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
