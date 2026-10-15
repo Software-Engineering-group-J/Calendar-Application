@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -558,8 +557,3 @@ def delete_event(event_id: str):
         "message": "Event deleted successfully.",
         "id": event_id,
     }
-
-
-
-
-
