@@ -34,10 +34,19 @@ vi.mock('@fullcalendar/react', () => ({
   ),
 }));
 
-vi.mock('@fullcalendar/react/daygrid', () => ({ default: {} }));
-vi.mock('@fullcalendar/react/timegrid', () => ({ default: {} }));
-vi.mock('@fullcalendar/react/interaction', () => ({ default: {} }));
-vi.mock('@fullcalendar/react/themes/classic', () => ({ default: {} }));
+vi.mock('@fullcalendar/daygrid', () => ({
+  default: {},
+}));
+
+vi.mock('@fullcalendar/timegrid', () => ({
+  default: {},
+}));
+
+vi.mock('@fullcalendar/interaction', () => ({
+  default: {},
+}));
+
+
 
 function jsonResponse(data, status = 200) {
   return {
@@ -101,7 +110,7 @@ describe('StudySync calendar', () => {
     render(<App />);
     await waitForInitialLoad();
 
-    expect(fetch).toHaveBeenCalledWith('/api/events', {});
+    expect(fetch).toHaveBeenCalledWith('http://127.0.0.1:8000/api/events');
     fireEvent.click(screen.getByRole('button', { name: /add event/i }));
     expect(screen.getByRole('heading', { name: 'Add New Event' })).toBeInTheDocument();
 
@@ -131,7 +140,7 @@ describe('StudySync calendar', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create Event' }));
 
     expect(await screen.findByRole('button', { name: 'Biology review' })).toBeInTheDocument();
-    expect(fetch.mock.calls[1][0]).toBe('/api/events');
+    expect(fetch.mock.calls[1][0]).toBe('http://127.0.0.1:8000/api/events');
     expect(fetch.mock.calls[1][1].method).toBe('POST');
     expect(JSON.parse(fetch.mock.calls[1][1].body)).toEqual({
       title: 'Biology review',
@@ -192,14 +201,14 @@ describe('StudySync calendar', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
 
     expect(await screen.findByRole('button', { name: 'Updated study session' })).toBeInTheDocument();
-    expect(fetch.mock.calls[1][0]).toBe('/api/events/server-event-1');
-    expect(fetch.mock.calls[1][1].method).toBe('PATCH');
+    expect(fetch.mock.calls[1][0]).toBe('http://127.0.0.1:8000/api/events/server-event-1');
+    expect(fetch.mock.calls[1][1].method).toBe('PUT');
 
     fireEvent.click(screen.getByRole('button', { name: 'Updated study session' }));
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
     expect(window.confirm).toHaveBeenCalled();
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(3));
-    expect(fetch.mock.calls[2][0]).toBe('/api/events/server-event-1');
+    expect(fetch.mock.calls[2][0]).toBe('http://127.0.0.1:8000/api/events/server-event-1');
     expect(fetch.mock.calls[2][1].method).toBe('DELETE');
     await waitFor(() => {
       expect(screen.queryByRole('button', { name: 'Updated study session' })).not.toBeInTheDocument();
