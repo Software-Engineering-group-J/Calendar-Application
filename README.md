@@ -1,6 +1,6 @@
 # StudySync
 
-![StudySync CI](https://github.com/Supazz/Calendar-Application/actions/workflows/ci.yml/badge.svg?branch=CIpipeline)
+[![Frontend CI Pipeline](https://github.com/Supazz/Calendar-Application/actions/workflows/ci.yml/badge.svg?branch=CIpipeline)](https://github.com/Supazz/Calendar-Application/actions/workflows/ci.yml)
 
 ## Current Status
 
