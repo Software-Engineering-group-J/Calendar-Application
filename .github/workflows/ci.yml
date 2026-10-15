@@ -3,9 +3,9 @@ name: Frontend CI Pipeline
 
 on:
   push:
-    branches: [CIpipeline]
+    branches: [main]
   pull_request:
-    branches: [CIpipeline]
+    branches: [main]
 
 permissions:
   contents: read
