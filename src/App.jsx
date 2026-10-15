@@ -1,52 +1,3 @@
-<<<<<<< HEAD
-// React state lets the page remember events and form inputs while it is open.
-import { useEffect, useState } from 'react';
-// Main calendar component. The imports below enable different views and clicks.
-import FullCalendar from '@fullcalendar/react';
-// Month grid view (dayGridMonth).
-import dayGridPlugin from '@fullcalendar/react/daygrid';
-// Week and day views with hourly time slots.
-import timeGridPlugin from '@fullcalendar/react/timegrid';
-// Enables calendar date-click interactions.
-import interactionPlugin from '@fullcalendar/react/interaction';
-// Theme plugin used by this FullCalendar setup.
-import classicThemePlugin from '@fullcalendar/react/themes/classic';
-// Calendar CSS: structure, theme, and colors.
-import '@fullcalendar/react/skeleton.css';
-import '@fullcalendar/react/themes/classic/theme.css';
-import '@fullcalendar/react/themes/classic/palette.css';
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
-
-async function apiRequest(path, options = {}) {
-  const response = await fetch(`${API_BASE_URL}${path}`, options);
-
-  if (!response.ok) {
-    let message = `API request failed (${response.status}).`;
-    try {
-      const body = await response.json();
-      if (typeof body.detail === 'string') message = body.detail;
-    } catch {
-      // Keep the status-based message when the response has no JSON body.
-    }
-    throw new Error(message);
-  }
-
-  if (response.status === 204) return null;
-  return response.json();
-}
-
-function toCalendarEvent(event) {
-  return {
-    ...event,
-    extendedProps: {
-      ...(event.extendedProps || {}),
-      description: event.description || event.extendedProps?.description || '',
-    },
-  };
-}
-// EDIT HERE: All visual styling for the page and event popup.
-// Values such as padding, colors, and widths change appearance, not event logic.
-=======
 
 import { useEffect, useState } from 'react';
 
@@ -86,7 +37,6 @@ function toDateTimeLocal(date) {
     .slice(0, 16);
 }
 
->>>>>>> main
 const styles = {
   page: {
     maxWidth: '1200px',
@@ -106,7 +56,7 @@ const styles = {
   },
 
   button: {
-    background: 'red',
+    background: 'blue',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
@@ -162,25 +112,6 @@ const styles = {
     fontFamily: 'inherit',
   },
 };
-<<<<<<< HEAD
-// Format a local date for datetime-local inputs
-// datetime-local inputs need local time formatted as YYYY-MM-DDTHH:mm.
-// The timezone offset avoids showing UTC time in a local-time input.
-function toDateTimeLocal(date) {
-  const d = new Date(date);
-  const offset = d.getTimezoneOffset() * 60000;
-  return new Date(d.getTime() - offset)
-    .toISOString()
-    .slice(0, 16);
-}
-// Main React component: event state, event handlers, calendar, and form UI.
-function App() {
-  const [events, setEvents] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [apiError, setApiError] = useState('');
-  // true = show popup; false = hide popup.
-=======
 
 function App() {
   const [events, setEvents] = useState([]);
@@ -188,7 +119,6 @@ function App() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
->>>>>>> main
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
@@ -198,28 +128,6 @@ function App() {
     start: '',
     end: '',
   });
-<<<<<<< HEAD
-  useEffect(() => {
-    let isCurrent = true;
-
-    apiRequest('/api/events')
-      .then((result) => {
-        if (isCurrent) setEvents(result.events.map(toCalendarEvent));
-      })
-      .catch((error) => {
-        if (isCurrent) setApiError(`Unable to load events: ${error.message}`);
-      })
-      .finally(() => {
-        if (isCurrent) setIsLoading(false);
-      });
-
-    return () => {
-      isCurrent = false;
-    };
-  }, []);
-  // ADD EVENT: initialize blank fields and open the popup.
-  // If a date is clicked, use that date; otherwise use the current time.
-=======
 
   // Load events from the Python backend.
   useEffect(() => {
@@ -258,7 +166,6 @@ function App() {
   }, []);
 
   // Open the Add Event popup.
->>>>>>> main
   function openAddForm(date = new Date()) {
     const start = new Date(date);
     const end = new Date(start.getTime() + 60 * 60 * 1000);
@@ -307,15 +214,9 @@ function App() {
       [field]: value,
     }));
   }
-<<<<<<< HEAD
-  // CREATE OR SAVE CHANGES: called when the form's submit button is clicked.
-  async function handleSubmit(e) {
-    // Prevent browser's normal form submission (which reloads the page).
-=======
 
   // Save new or edited events through FastAPI.
   async function handleSubmit(e) {
->>>>>>> main
     e.preventDefault();
 
     if (saving) return;
@@ -336,48 +237,14 @@ function App() {
       alert('The end date must be after the start date.');
       return;
     }
-<<<<<<< HEAD
-    const eventData = {
-=======
 
     const payload = {
->>>>>>> main
       title: form.title.trim(),
       description: form.description.trim(),
       start: start.toISOString(),
       end: end.toISOString(),
     };
 
-<<<<<<< HEAD
-    setIsSaving(true);
-    setApiError('');
-    try {
-      const savedEvent = await apiRequest(
-        editingId ? `/api/events/${editingId}` : '/api/events',
-        {
-          method: editingId ? 'PATCH' : 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(eventData),
-        },
-      );
-      const calendarEvent = toCalendarEvent(savedEvent);
-
-      setEvents((current) =>
-        editingId
-          ? current.map((event) => event.id === editingId ? calendarEvent : event)
-          : [...current, calendarEvent]
-      );
-      closeForm();
-    } catch (error) {
-      setApiError(`Unable to save event: ${error.message}`);
-    } finally {
-      setIsSaving(false);
-    }
-  }
-  // DELETE EVENT: ask for confirmation, remove the selected ID, save.
-  async function handleDelete() {
-    if (!editingId) return;
-=======
     setSaving(true);
     setError('');
 
@@ -410,21 +277,11 @@ function App() {
   async function handleDelete() {
     if (!editingId || saving) return;
 
->>>>>>> main
     const confirmed = window.confirm(
       'Are you sure you want to delete this event?'
     );
 
     if (!confirmed) return;
-<<<<<<< HEAD
-    setApiError('');
-    try {
-      await apiRequest(`/api/events/${editingId}`, { method: 'DELETE' });
-      setEvents((current) => current.filter((event) => event.id !== editingId));
-      closeForm();
-    } catch (error) {
-      setApiError(`Unable to delete event: ${error.message}`);
-=======
 
     setSaving(true);
     setError('');
@@ -443,7 +300,6 @@ function App() {
       setError(`Could not delete event: ${err.message}`);
     } finally {
       setSaving(false);
->>>>>>> main
     }
   }
 
@@ -468,15 +324,6 @@ function App() {
           + Add Event
         </button>
       </header>
-<<<<<<< HEAD
-      {apiError && <p role="alert">{apiError}</p>}
-      <section>
-        <h2>Team Schedule</h2>
-        <p>Click a date to create an event.</p>
-        {isLoading && <p role="status">Loading events...</p>}
-        {/* EDIT HERE: initialView sets month/week/day; headerToolbar controls navigation.
-            events supplies saved items; dateClick adds; eventClick edits. */}
-=======
 
       {/* CALENDAR */}
       <section style={styles.calendarCard}>
@@ -499,7 +346,6 @@ function App() {
           </p>
         )}
 
->>>>>>> main
         <FullCalendar
           plugins={[
             dayGridPlugin,
@@ -608,17 +454,12 @@ function App() {
                   type="submit"
                   disabled={saving}
                   style={styles.button}
-                  disabled={isSaving}
                 >
-<<<<<<< HEAD
-                  {isSaving ? 'Saving...' : editingId ? 'Save Changes' : 'Create Event'}
-=======
                   {saving
                     ? 'Saving...'
                     : editingId
                     ? 'Save Changes'
                     : 'Create Event'}
->>>>>>> main
                 </button>
 
                 <button
