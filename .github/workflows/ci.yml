@@ -3,9 +3,9 @@ name: Frontend CI/CD Pipeline
 
 on:
   push:
-    branches: [frontendCDpipeline]
+    branches: ['**']
   pull_request:
-    branches: [frontendCDpipeline]
+    branches: ['**']
 
 permissions:
   contents: read
