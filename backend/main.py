@@ -9,6 +9,10 @@ from fastapi import FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+from canvasapi.assignment import Assignment
+from canvasapi.calendar_event import CalendarEvent
+from canvasapi.quiz import Quiz
+from canvasapi.new_quiz import NewQuiz
 
 # ============================================================
 # STUDYSYNC API CONFIGURATION
@@ -125,7 +129,7 @@ events: Dict[str, Event] = {}
 
 
 # ============================================================
-# HELPER FUNCTIONS
+# TIMEOPS HELPER FUNCTIONS
 # ============================================================
 
 def validate_event_times(start: datetime, end: datetime):
@@ -174,6 +178,170 @@ def normalized_utc(value: datetime) -> datetime:
         return value.replace(tzinfo=timezone.utc)
 
     return value.astimezone(timezone.utc)
+
+# ============================================================
+# CANVAS HELPER METHODS
+# ============================================================
+
+def calendar_event_to_event_input( canvas_event: CalendarEvent ) -> EventInput:
+    '''Converts Canvas calendar events to the EventInput data model.
+    Sensible defaults for event status, priority, and category are set and labelled (since there is no true analog for them.)
+    NOTE: This method makes no effort to handle events that exist in the past.'''
+    workflow_state = getattr(
+        canvas_event,
+        "workflow_state",
+        "deleted"
+    )
+
+    match workflow_state: #Workflow_state exists, else getattr would have raised an error
+        case "active":
+            event_status = EventStatus.pending
+        case "locked": #Assume that locked = event date has passed
+            event_status = EventStatus.completed
+        case _:
+            event_status = EventStatus.cancelled
+
+    return EventInput(
+        title=canvas_event.title,
+        description=getattr(
+            canvas_event,
+            "description",
+            "",
+        ) or "No description provided.",
+        start=canvas_event.start_at_date, #start_at is string format, canvasapi stores datetime as start_at_date
+        end=canvas_event.end_at_date,
+        priority=Priority.medium, #Default
+        category=Category.other, #Default
+        status=event_status,
+        location=getattr(
+            canvas_event,
+            "location_name",
+            None,
+        ),
+        course=getattr(
+            canvas_event,
+            "context_name",
+            None,
+        ),
+        completed = (workflow_state == locked), #This is the same assumption we made above
+    )
+
+def assignment_to_event_input(assignment: Assignment) -> EventInput:
+    start = (
+        getattr(assignment, "unlock_at_date", None)
+        or getattr(assignment, "due_at_date", None)
+        or getattr(assignment, "lock_at_date", None)
+    )
+
+    if start is None:
+        raise ValueError(
+            "Assignment cannot be converted because it has no unlock_at, "
+            "due_at, or lock_at value."
+        )
+
+    end = (
+        getattr(assignment, "due_at_date", None)
+        or getattr(assignment, "lock_at_date", None)
+        or start
+    )
+
+    if end is start: #validate_event_times says that having these equal is invalid, so separate by one second when applicable
+        end = start + timedelta(seconds = 1)
+
+    course_id = getattr(assignment, "course_id", None)
+
+    return EventInput(
+        title=assignment.name,
+        description=getattr(assignment, "description", "") or "",
+        start=start,
+        end=end,
+        priority=Priority.medium, #default
+        category=Category.assignment, #default
+        status=EventStatus.pending, #default
+        location=None, #default
+        course=str(course_id) if course_id is not None else None,
+        completed=False,
+    )
+
+
+def quiz_to_event_input(quiz: Quiz | NewQuiz) -> EventInput:
+    '''NOTE: Quiz and NewQuiz are separate classes, but we handle both here.
+    We do not care about their functionalities beyond what timedates they take place.'''
+    start = (
+        getattr(quiz, "unlock_at_date", None)
+        or getattr(quiz, "due_at_date", None)
+        or getattr(quiz, "lock_at_date", None)
+    )
+
+    if start is None:
+        raise ValueError(
+            "Quiz cannot be converted because it has no unlock_at, "
+            "due_at, or lock_at value."
+    )
+
+    end = (
+        getattr(quiz, "due_at_date", None)
+        or getattr(quiz, "lock_at_date", None)
+        or start
+    )
+
+    if end is start: #ditto to assignment converter above
+        end = start + timedelta(seconds = 1)
+
+    course_id = getattr(quiz, "course_id", None)
+
+    event_description = ""
+    if type(quiz) == NewQuiz:
+        event_description = getattr(quiz, "instructions", "") or ""
+    else:
+        description = getattr(quiz, "description", "") or ""
+
+    return EventInput(
+        title=quiz.title,
+        description=event_description,
+        start=start,
+        end=end,
+        priority=Priority.high, #default
+        category=Category.exam, #default
+        status=EventStatus.pending, #default
+        location=None, #default
+        course=str(course_id) if course_id is not None else None,
+        completed=False, #default
+    )
+
+
+# def new_quiz_to_event_input(new_quiz: NewQuiz) -> EventInput:
+#     start = (
+#         getattr(new_quiz, "unlock_at_date", None)
+#         or getattr(new_quiz, "due_at_date", None)
+#         or getattr(new_quiz, "lock_at_date", None)
+#     )
+#     end = (
+#         getattr(new_quiz, "due_at_date", None)
+#         or getattr(new_quiz, "lock_at_date", None)
+#         or start
+#     )
+#
+#     if start is None:
+#         raise ValueError(
+#             "NewQuiz cannot be converted because it has no unlock_at, "
+#             "due_at, or lock_at value."
+#         )
+#
+#     course_id = getattr(new_quiz, "course_id", None)
+#
+#     return EventInput(
+#         title=new_quiz.title,
+#         description=getattr(new_quiz, "instructions", "") or "",
+#         start=start,
+#         end=end,
+#         priority=Priority.high, #default
+#         category=Category.exam, #default
+#         status=EventStatus.pending, #default
+#         location=None, #default
+#         course=str(course_id) if course_id is not None else None,
+#         completed=False, #default
+#     )
 
 
 # ============================================================
@@ -557,3 +725,8 @@ def delete_event(event_id: str):
         "message": "Event deleted successfully.",
         "id": event_id,
     }
+
+# Canvas module assumptions:
+# The backend has full control over OAuth2 keys
+# We should avoid storing keys in memory, even if the backend is shielded from the internet
+
