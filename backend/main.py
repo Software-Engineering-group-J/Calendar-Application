@@ -212,40 +212,30 @@ class canvasConnection(Canvas):
 
         if not courseID in self.__assignmentsOfCourses:
             self.__assignmentsOfCourses[courseID] = []
-            assignmentsTraversed = 0
             assignmentsOfCourseId = self._validCourses[courseID].get_assignments()
-            listEmpty = False
 
-            while not listEmpty:
+            for assignments in assignmentsOfCourseId:
                 try:
-                    if hasattr(assignmentsOfCourseId[assignmentsTraversed], "id"):
-                        self.__assignmentsOfCourses[courseID].append( assignmentsOfCourseId[assignmentsTraversed] )
-                    assignmentsTraversed += 1
-                except IndexError:
-                    listEmpty = True
+                    if hasattr(assignments, "id"):
+                        self.__assignmentsOfCourses[courseID].append( assignments )
+                except (Forbidden, Unauthorized):
+                    pass
 
         if not courseID in self.__quizzesOfCourses:
             self.__quizzesOfCourses[courseID] = []
 
-            quizzesTraversed = 0
-            newQuizzesTraversed = 0
             quizzesOfCourseId = self._validCourses[courseID].get_quizzes()
             newQuizzesOfCourseId = self._validCourses[courseID].get_new_quizzes()
 
-            listEmpty = False
-            while not listEmpty:
-                try:
-                    if hasattr(quizzesOfCourseId[quizzesTraversed], "id"):
-                        self.__quizzesOfCourses[courseID].append( quizzesOfCourseId[assignmentsTraversed] )
-                    quizzesTraversed += 1
-                except IndexError:
-                    listEmpty = True
-                except Forbidden:
-                    newQuizzesTraversed += 1
-                except Unauthorized:
-                    newQuizzesTraversed += 1
-                except ResourceDoesNotExist: #Dangerous: we are assuming list ends here, but not necessarily true!
-                    listEmpty = True
+            try:
+                for quizzes in quizzesOfCourseId:
+                    try:
+                        if hasattr(quizzes, "id"):
+                            self.__quizzesOfCourses[courseID].append( quizzes  )
+                    except (Forbidden, Unauthorized):
+                        pass
+            except ResourceDoesNotExist: #Dangerous: we are assuming list ends here, but not necessarily true!
+                    pass
 
             #Currently exhibits weird behavior, avoid for now
 
