@@ -214,12 +214,15 @@ class canvasConnection(Canvas):
             self.__assignmentsOfCourses[courseID] = []
             assignmentsOfCourseId = self._validCourses[courseID].get_assignments()
 
-            for assignments in assignmentsOfCourseId:
-                try:
-                    if hasattr(assignments, "id"):
-                        self.__assignmentsOfCourses[courseID].append( assignments )
-                except (Forbidden, Unauthorized):
-                    pass
+            try:
+                for assignments in assignmentsOfCourseId:
+                    try:
+                        if hasattr(assignments, "id"):
+                            self.__assignmentsOfCourses[courseID].append( assignments )
+                    except (Forbidden, Unauthorized):
+                        pass
+            except ResourceDoesNotExist:
+                pass
 
         if not courseID in self.__quizzesOfCourses:
             self.__quizzesOfCourses[courseID] = []
@@ -819,9 +822,47 @@ def delete_event(event_id: str):
         "id": event_id,
     }
 
-# Canvas module assumptions:
-# The backend has full control over OAuth2 keys
-# For now, we should just manage keys on the backend and return the results of each call
-# When the database is set up, we should avoid storing keys in memory entirely
-def newCanvasInstance(apiKey: str) -> Canvas:
-    return Canvas(_canvasOriginURL, apiKey)
+# ============================================================
+# Handle events from Canvas
+# ============================================================
+@app.get("/api/events/pullFromCanvas")
+def pullFromCanvas(CANVAS_API_KEY: str):
+    '''Creates a new canvasConnection object from an API key, then reads and adds all assignments and quizzes as events.'''
+
+    if not CANVAS_API_KEY:
+        activeCanvasConnections[CANVAS_API_KEY] = canvasConnection(_canvasOriginURL)
+
+    workingConnection = activeCanvasConnections[CANVAS_API_KEY] #Alias for current Canvas connection
+    convertedEvents: list(EventInput) = [] #Storage for converted Assignments/Quizzes
+
+    #Try to load a bajillion courses, since this was written before I learned PaginatedList is (technically) iterable
+    workingConnection.loadCourses(untilFound = 1000)
+    workingConnection.loadCalendarEvents()
+
+
+    #Collect the three Canvas object types into their own lists
+    workingCourses = workingConnection.getLoadedCourses().keys()
+
+    assignmentsToAddList = []
+    quizzesToAddList = []
+    calendarEventsToAddList = workingConnection.getCalendarEvents()
+
+    for courseID in workingCourses:
+        courseContents = workingConnection.getContentsOfCourse(courseID)
+        assignmentsToAddList += courseContents["assignments"]
+        quizzesToAddList += courseContents["quizzes"]
+
+    #Iterate through lists, converting and combining into a unified EventInput list
+    for assignment in assignmentsToAddList:
+        convertedEvents.append( assignment_or_quiz_to_event_input(assignment) )
+    for quiz in quizzesToAddList:
+        convertedEvents.append( assignment_or_quiz_to_event_input(quiz) )
+    for calendarEvent in calendarEventsToAddList:
+        convertedEvents.append( calendar_event_to_event_input(calendarEvent) )
+
+    #Add convertedEvents to the events dictionary (database in future)
+    for event in convertedEvents:
+        events[uuid4()] = event #[note to self] suspicious
+
+    return {"message": "Events pulled from Canvas."}
+
