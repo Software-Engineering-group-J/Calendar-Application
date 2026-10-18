@@ -11,8 +11,14 @@ from pydantic import BaseModel, Field
 
 from canvasapi.assignment import Assignment
 from canvasapi.calendar_event import CalendarEvent
+from canvasapi.canvas import Canvas # Main instance!
 from canvasapi.quiz import Quiz
 from canvasapi.new_quiz import NewQuiz
+
+# ============================================================
+# Globals
+# ============================================================
+_canvasOriginURL = "canvas.ou.edu"
 
 # ============================================================
 # STUDYSYNC API CONFIGURATION
@@ -116,6 +122,42 @@ class EventUpdate(BaseModel):
 
     completed: Optional[bool] = None
 
+# ============================================================
+# Canvas integration classes
+# ============================================================
+class canvasConnection(Canvas):
+    '''Extension of canvasapi.canvas.Canvas to efficiently manage PaginatedLists.
+    It provides fields to store important objects while traversing each list, so they don't have to be constantly reloaded.'''
+    def __init__(self, apiKey, defaultPageCount: int = 10):
+        super(_canvasOriginURL, apiKey)
+
+        self.__coursesTraversed: int = 0
+        self.__actualCourses = None
+        self._validCourses = []
+
+        self.__calendarEventsTraversed: int = 0
+        self.__actualCalendarEvents = None #We shouldn't populate these fields unless the caller actually
+        self._validCalendarEvents = []
+
+        self.__assignmentsTraversed: int = 0
+        self.__actualAssignments = None
+        self._validAssignments = []
+
+        #Reminder: quiz and newQuiz don't have meaningful difference to us, but are still represented by different classes
+        self.__quizzesTraversed: int = 0
+        self.__newQuizzesTraversed: int = 0
+        self.__actualQuizzes = None
+        self.__actualNewQuizzes = None
+        self._validQuizzes = []
+
+    def loadCourseBatch(self, untilChecked: int = None, untilFound: int = None) -> int:
+        '''Traverse the courses of the linked account, to take note of valid courses to read from.'''
+        if not self.__actualCourses:
+            self.__actualCourses = super().get_current_user().get_courses() #PaginatedList
+
+        if untilFound:
+            while untilFound > 0:
+                pass
 
 # ============================================================
 # TEMPORARY EVENT STORAGE
@@ -124,9 +166,10 @@ class EventUpdate(BaseModel):
 # Events are stored in memory for now.
 # Restarting the server clears this dictionary.
 # SQLite or PostgreSQL can replace this later.
+# While the database is missing, Canvas connections will also be stored here
 
 events: Dict[str, Event] = {}
-
+activeCanvasConnections: Dict[str, canvasConnection] = {}
 
 # ============================================================
 # TIMEOPS HELPER FUNCTIONS
@@ -198,7 +241,7 @@ def calendar_event_to_event_input( canvas_event: CalendarEvent ) -> EventInput:
             event_status = EventStatus.pending
         case "locked": #Assume that locked = event date has passed
             event_status = EventStatus.completed
-        case _:
+        case _: #Same as case "deleted"
             event_status = EventStatus.cancelled
 
     return EventInput(
@@ -226,11 +269,20 @@ def calendar_event_to_event_input( canvas_event: CalendarEvent ) -> EventInput:
         completed = (workflow_state == locked), #This is the same assumption we made above
     )
 
-def assignment_to_event_input(assignment: Assignment) -> EventInput:
+def assignment_or_quiz_to_event_input(canvasapiobject: Assignment|Quiz|NewQuiz) -> EventInput:
+    '''Converts Assignment, Quiz, and NewQuiz objects to EventInputs using reasonable defaults.
+    NOTE: This conversion is one way and takes advantage of overlapping fields.
+    It does not meaningfully represent the differences between these classes.'''
+
+    #Sanity check:
+    if type(canvasapiobject) not in [Assignment, Quiz, NewQuiz]:
+        raise TypeError(f"assignment_or_quiz_to_event_input: Type '{type(canvasapiobject)}' is not Assignment, Quiz, or NewQuiz")
+
+    #Grab the desired event interval
     start = (
-        getattr(assignment, "unlock_at_date", None)
-        or getattr(assignment, "due_at_date", None)
-        or getattr(assignment, "lock_at_date", None)
+        getattr(canvasapiobject, "unlock_at_date", None)
+        or getattr(canvasapiobject, "due_at_date", None)
+        or getattr(canvasapiobject, "lock_at_date", None)
     )
 
     if start is None:
@@ -240,109 +292,49 @@ def assignment_to_event_input(assignment: Assignment) -> EventInput:
         )
 
     end = (
-        getattr(assignment, "due_at_date", None)
-        or getattr(assignment, "lock_at_date", None)
+        getattr(canvasapiobject, "due_at_date", None)
+        or getattr(canvasapiobject, "lock_at_date", None)
         or start
     )
 
-    if end is start: #validate_event_times says that having these equal is invalid, so separate by one second when applicable
+    if end is start: #normalize as one second interval when start and end are the same
         end = start + timedelta(seconds = 1)
 
-    course_id = getattr(assignment, "course_id", None)
+    #Match specific values based on the type of canvasapiobject
+    #Values that vary: title, description, priority, category
+    if type(canvasapiobject) is Assignment:
+        event_title = canvasapiobject.name
+        event_description = getattr(canvasapiobject, "description", "") or ""
+        event_priority = Priority.medium
+        event_category = Category.assignment
+
+    elif type(canvasapiobject) is Quiz:
+        event_title = canvasapiobject.title
+        event_description = getattr(canvasapiobject, "description", "") or ""
+        event_priority = Priority.high
+        event_category = Category.exam
+
+    else: #Assumed type is newQuiz
+        event_title = canvasapiobject.title
+        event_description = getattr(canvasapiobject, "instructions", "") or ""
+        event_priority = Priority.high
+        event_category = Category.exam
+
+    course_id = getattr(canvasapiobject, "course_id", None)
+
 
     return EventInput(
-        title=assignment.name,
-        description=getattr(assignment, "description", "") or "",
+        title=event_title,
+        description=event_description, #dynamic
         start=start,
         end=end,
-        priority=Priority.medium, #default
-        category=Category.assignment, #default
+        priority=event_priority, #dynamic default
+        category=event_category, #dynamic default
         status=EventStatus.pending, #default
         location=None, #default
         course=str(course_id) if course_id is not None else None,
         completed=False,
     )
-
-
-def quiz_to_event_input(quiz: Quiz | NewQuiz) -> EventInput:
-    '''NOTE: Quiz and NewQuiz are separate classes, but we handle both here.
-    We do not care about their functionalities beyond what timedates they take place.'''
-    start = (
-        getattr(quiz, "unlock_at_date", None)
-        or getattr(quiz, "due_at_date", None)
-        or getattr(quiz, "lock_at_date", None)
-    )
-
-    if start is None:
-        raise ValueError(
-            "Quiz cannot be converted because it has no unlock_at, "
-            "due_at, or lock_at value."
-    )
-
-    end = (
-        getattr(quiz, "due_at_date", None)
-        or getattr(quiz, "lock_at_date", None)
-        or start
-    )
-
-    if end is start: #ditto to assignment converter above
-        end = start + timedelta(seconds = 1)
-
-    course_id = getattr(quiz, "course_id", None)
-
-    event_description = ""
-    if type(quiz) == NewQuiz:
-        event_description = getattr(quiz, "instructions", "") or ""
-    else:
-        description = getattr(quiz, "description", "") or ""
-
-    return EventInput(
-        title=quiz.title,
-        description=event_description,
-        start=start,
-        end=end,
-        priority=Priority.high, #default
-        category=Category.exam, #default
-        status=EventStatus.pending, #default
-        location=None, #default
-        course=str(course_id) if course_id is not None else None,
-        completed=False, #default
-    )
-
-
-# def new_quiz_to_event_input(new_quiz: NewQuiz) -> EventInput:
-#     start = (
-#         getattr(new_quiz, "unlock_at_date", None)
-#         or getattr(new_quiz, "due_at_date", None)
-#         or getattr(new_quiz, "lock_at_date", None)
-#     )
-#     end = (
-#         getattr(new_quiz, "due_at_date", None)
-#         or getattr(new_quiz, "lock_at_date", None)
-#         or start
-#     )
-#
-#     if start is None:
-#         raise ValueError(
-#             "NewQuiz cannot be converted because it has no unlock_at, "
-#             "due_at, or lock_at value."
-#         )
-#
-#     course_id = getattr(new_quiz, "course_id", None)
-#
-#     return EventInput(
-#         title=new_quiz.title,
-#         description=getattr(new_quiz, "instructions", "") or "",
-#         start=start,
-#         end=end,
-#         priority=Priority.high, #default
-#         category=Category.exam, #default
-#         status=EventStatus.pending, #default
-#         location=None, #default
-#         course=str(course_id) if course_id is not None else None,
-#         completed=False, #default
-#     )
-
 
 # ============================================================
 # HOME AND HEALTH CHECK
@@ -728,5 +720,7 @@ def delete_event(event_id: str):
 
 # Canvas module assumptions:
 # The backend has full control over OAuth2 keys
-# We should avoid storing keys in memory, even if the backend is shielded from the internet
-
+# For now, we should just manage keys on the backend and return the results of each call
+# When the database is set up, we should avoid storing keys in memory entirely
+def newCanvasInstance(apiKey: str) -> Canvas:
+    return Canvas(_canvasOriginURL, apiKey)
