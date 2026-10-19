@@ -1,5 +1,30 @@
 ## Current Status
 
+### SQLite backend storage
+
+The backend now uses SQLModel and SQLite for all event endpoints, including
+editing, deleting, completion, filtering, upcoming events, conflicts, statistics,
+and the health-check event count. The older browser-storage and planned-database
+descriptions below describe an earlier version.
+
+Install backend dependencies in your virtual environment from
+`backend/requirements.txt`. From the project root in WSL:
+
+```bash
+.venv/bin/python -m pip install -r backend/requirements.txt
+.venv/bin/python -m uvicorn backend.main:app --reload --port 8000
+```
+
+Tables are created at startup in `backend/studysync.db`. This local file is
+ignored by Git and survives backend restarts. Existing in-memory events are not
+automatically imported. Back up the database before future schema changes;
+startup table creation does not migrate existing columns.
+
+Send timezone-aware timestamps in API requests. Timestamps are stored in UTC
+and returned with a UTC offset. Legacy timestamps already stored without an
+offset are interpreted as UTC. PUT replaces all editable fields; PATCH changes
+only submitted fields. No frontend API changes are required.
+
 StudySync is currently in the early development phase.
 
 The React frontend has been developed using React, Vite, and FullCalendar.

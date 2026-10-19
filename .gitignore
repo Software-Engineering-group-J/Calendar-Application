@@ -27,4 +27,4 @@ backend/.venv/
 __pycache__/
 *.pyc
 .env
-*.dbgit 
+backend/studysync.db*

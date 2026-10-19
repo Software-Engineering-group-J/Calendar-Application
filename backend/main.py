@@ -1,18 +1,26 @@
 from __future__ import annotations
 
+
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Dict, List, Optional
-from uuid import uuid4
+from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Query, status
+from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
-
+from pydantic import BaseModel, Field, ValidationError
+from contextlib import asynccontextmanager
+from backend.models.event import EventRecord
+from backend.database import create_tables, get_session
+from sqlmodel import Session, select
 
 # ============================================================
 # STUDYSYNC API CONFIGURATION
 # ============================================================
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    create_tables()
+    yield
 
 app = FastAPI(
     title="StudySync API",
@@ -22,6 +30,7 @@ app = FastAPI(
         "study sessions, and scheduling conflicts."
     ),
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 
@@ -114,14 +123,10 @@ class EventUpdate(BaseModel):
 
 
 # ============================================================
-# TEMPORARY EVENT STORAGE
+# DATABASE STORAGE
 # ============================================================
 
-# Events are stored in memory for now.
-# Restarting the server clears this dictionary.
-# SQLite or PostgreSQL can replace this later.
-
-events: Dict[str, Event] = {}
+# Each request uses a session supplied by get_session.
 
 
 # ============================================================
@@ -148,17 +153,14 @@ def event_duration_hours(event: Event) -> float:
 
 
 def event_overlaps(first: Event, second: Event) -> bool:
-    try:
-        return (
-            first.start < second.end
-            and second.start < first.end
-        )
-    except TypeError:
-        return False
+    return (
+        normalized_utc(first.start) < normalized_utc(second.end)
+        and normalized_utc(second.start) < normalized_utc(first.end)
+    )
 
 
-def get_event_or_404(event_id: str) -> Event:
-    event = events.get(event_id)
+def get_event_or_404(event_id: str, session: Session) -> EventRecord:
+    event = session.get(EventRecord, event_id)
 
     if event is None:
         raise HTTPException(
@@ -176,6 +178,14 @@ def normalized_utc(value: datetime) -> datetime:
     return value.astimezone(timezone.utc)
 
 
+def database_values(event: EventInput) -> dict:
+    values = event.model_dump()
+    # Store UTC in SQLite, whose datetime columns do not retain offsets.
+    values['start'] = normalized_utc(event.start).replace(tzinfo=None)
+    values['end'] = normalized_utc(event.end).replace(tzinfo=None)
+    return values
+
+
 # ============================================================
 # HOME AND HEALTH CHECK
 # ============================================================
@@ -191,11 +201,11 @@ def home():
 
 
 @app.get("/api/health")
-def health_check():
+def health_check(session: Session = Depends(get_session)):
     return {
         "status": "healthy",
         "service": "StudySync API",
-        "total_events": len(events),
+        "total_events": len(session.exec(select(EventRecord)).all()),
     }
 
 
@@ -213,8 +223,9 @@ def get_events(
     ),
     completed: Optional[bool] = None,
     search: Optional[str] = None,
+    session: Session = Depends(get_session),
 ):
-    result = list(events.values())
+    result = session.exec(select(EventRecord)).all()
 
     if category is not None:
         result = [
@@ -267,13 +278,14 @@ def get_events(
 @app.get("/api/events/upcoming")
 def get_upcoming_events(
     days: int = Query(default=7, ge=1, le=365),
+    session: Session = Depends(get_session),
 ):
     now = datetime.now(timezone.utc)
     cutoff = now + timedelta(days=days)
 
     upcoming = [
         event
-        for event in events.values()
+        for event in session.exec(select(EventRecord)).all()
         if (
             now <= normalized_utc(event.start) <= cutoff
             and not event.completed
@@ -297,10 +309,10 @@ def get_upcoming_events(
 # ============================================================
 
 @app.get("/api/events/conflicts")
-def get_event_conflicts():
+def get_event_conflicts(session: Session = Depends(get_session)):
     event_list = [
         event
-        for event in events.values()
+        for event in session.exec(select(EventRecord)).all()
         if event.status != EventStatus.cancelled
     ]
 
@@ -334,13 +346,14 @@ def get_event_conflicts():
 @app.get("/api/stats/study-time")
 def get_study_time(
     days: int = Query(default=7, ge=1, le=365),
+    session: Session = Depends(get_session),
 ):
     now = datetime.now(timezone.utc)
     window_start = now - timedelta(days=days)
 
     study_events = [
         event
-        for event in events.values()
+        for event in session.exec(select(EventRecord)).all()
         if (
             event.category == Category.study
             and event.status != EventStatus.cancelled
@@ -391,8 +404,8 @@ def get_study_time(
 # ============================================================
 
 @app.get("/api/stats/overview")
-def get_statistics():
-    event_list = list(events.values())
+def get_statistics(session: Session = Depends(get_session)):
+    event_list = session.exec(select(EventRecord)).all()
 
     by_category = {
         category.value: sum(
@@ -437,8 +450,8 @@ def get_statistics():
 # ============================================================
 
 @app.get("/api/events/{event_id}", response_model=Event)
-def get_event(event_id: str):
-    return get_event_or_404(event_id)
+def get_event(event_id: str, session: Session = Depends(get_session)):
+    return get_event_or_404(event_id, session)
 
 
 # ============================================================
@@ -450,20 +463,18 @@ def get_event(event_id: str):
     response_model=Event,
     status_code=status.HTTP_201_CREATED,
 )
-def create_event(event_data: EventInput):
-    validate_event_times(
-        event_data.start,
-        event_data.end,
-    )
 
-    event_id = str(uuid4())
+def create_event(
+    event_data: EventInput,
+    session: Session = Depends(get_session),
+):
+    validate_event_times(event_data.start, event_data.end)
 
-    new_event = Event(
-        id=event_id,
-        **event_data.model_dump(),
-    )
+    new_event = EventRecord(**database_values(event_data))
 
-    events[event_id] = new_event
+    session.add(new_event)
+    session.commit()
+    session.refresh(new_event)
 
     return new_event
 
@@ -476,20 +487,20 @@ def create_event(event_data: EventInput):
 def update_event(
     event_id: str,
     event_data: EventInput,
+    session: Session = Depends(get_session),
 ):
-    get_event_or_404(event_id)
+    updated_event = get_event_or_404(event_id, session)
 
     validate_event_times(
         event_data.start,
         event_data.end,
     )
 
-    updated_event = Event(
-        id=event_id,
-        **event_data.model_dump(),
-    )
-
-    events[event_id] = updated_event
+    for field, value in database_values(event_data).items():
+        setattr(updated_event, field, value)
+    session.add(updated_event)
+    session.commit()
+    session.refresh(updated_event)
 
     return updated_event
 
@@ -502,8 +513,9 @@ def update_event(
 def patch_event(
     event_id: str,
     event_data: EventUpdate,
+    session: Session = Depends(get_session),
 ):
-    existing = get_event_or_404(event_id)
+    existing = get_event_or_404(event_id, session)
 
     changes = event_data.model_dump(
         exclude_unset=True
@@ -512,16 +524,23 @@ def patch_event(
     updated_data = existing.model_dump()
     updated_data.update(changes)
 
-    updated_event = Event(**updated_data)
+    try:
+        updated_event = Event(**updated_data)
+    except ValidationError:
+        raise HTTPException(status_code=422, detail="Invalid event fields.")
 
     validate_event_times(
         updated_event.start,
         updated_event.end,
     )
 
-    events[event_id] = updated_event
-
-    return updated_event
+    for field, value in database_values(updated_event).items():
+        if field != 'id':
+            setattr(existing, field, value)
+    session.add(existing)
+    session.commit()
+    session.refresh(existing)
+    return existing
 
 
 # ============================================================
@@ -532,13 +551,15 @@ def patch_event(
     "/api/events/{event_id}/complete",
     response_model=Event,
 )
-def complete_event(event_id: str):
-    event = get_event_or_404(event_id)
+def complete_event(event_id: str, session: Session = Depends(get_session)):
+    event = get_event_or_404(event_id, session)
 
     event.completed = True
     event.status = EventStatus.completed
 
-    events[event_id] = event
+    session.add(event)
+    session.commit()
+    session.refresh(event)
 
     return event
 
@@ -548,10 +569,10 @@ def complete_event(event_id: str):
 # ============================================================
 
 @app.delete("/api/events/{event_id}")
-def delete_event(event_id: str):
-    get_event_or_404(event_id)
-
-    del events[event_id]
+def delete_event(event_id: str, session: Session = Depends(get_session)):
+    event = get_event_or_404(event_id, session)
+    session.delete(event)
+    session.commit()
 
     return {
         "message": "Event deleted successfully.",
