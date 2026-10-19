@@ -124,6 +124,9 @@ class EventUpdate(BaseModel):
 
     completed: Optional[bool] = None
 
+class apiKeyMessage(BaseModel):
+    key: Optional[str] = None
+
 # ============================================================
 # Canvas integration classes
 # ============================================================
@@ -148,6 +151,7 @@ class canvasConnection(Canvas):
     def getLoadedCourses(self):
         return self._validCourses
 
+    #TODO: Remove default page count, since it's unlikely we'll overload the API in normal use
     def loadCourses(self, batchName: str = "courses", untilChecked: int = None, untilFound: int = None) -> tuple(int, str):
         '''Traverse the courses of the linked account, to take note of valid courses to read from. The method can be limited
         in how many elements are checked, to avoid overloading the API.'''
@@ -206,6 +210,7 @@ class canvasConnection(Canvas):
                 listEmpty = True
 
     #Method to load assignments, quiz lists from a course
+    #TODO: Debug quizzes
     def getContentsOfCourse(self, courseID: int) -> dict(str, list):
         if not courseID in self._validCourses:
             raise IndexError(f"canvasConnection.getContentsOfCourse: '{courseID}' is not in the accessible course list for this user (did you load the full courses list yet?)")
@@ -260,7 +265,7 @@ class canvasConnection(Canvas):
             #     except ResourceDoesNotExist:
             #         listEmpty = True
 
-        return {"assignments": self.__assignmentsOfCourses, "quizzes": self.__quizzesOfCourses}
+        return {"assignments": self.__assignmentsOfCourses[courseID], "quizzes": self.__quizzesOfCourses[courseID]}
 
 
 # ============================================================
@@ -387,12 +392,12 @@ def assignment_or_quiz_to_event_input(canvasapiobject: Assignment|Quiz|NewQuiz) 
         getattr(canvasapiobject, "unlock_at_date", None)
         or getattr(canvasapiobject, "due_at_date", None)
         or getattr(canvasapiobject, "lock_at_date", None)
+        or getattr(canvasapiobject, "created_at_date", None)
     )
 
     if start is None:
         raise ValueError(
-            "Assignment cannot be converted because it has no unlock_at, "
-            "due_at, or lock_at value."
+            "Assignment cannot be converted because it has no unlock_at, due_at, or lock_at value."
         )
 
     end = (
@@ -826,11 +831,12 @@ def delete_event(event_id: str):
 # Handle events from Canvas
 # ============================================================
 @app.get("/api/events/pullFromCanvas")
-def pullFromCanvas(CANVAS_API_KEY: str):
+def pullFromCanvas(CANVAS_API_KEY: apiKeyMessage):
     '''Creates a new canvasConnection object from an API key, then reads and adds all assignments and quizzes as events.'''
+    CANVAS_API_KEY = CANVAS_API_KEY.key
 
-    if not CANVAS_API_KEY:
-        activeCanvasConnections[CANVAS_API_KEY] = canvasConnection(_canvasOriginURL)
+    if not CANVAS_API_KEY in activeCanvasConnections:
+        activeCanvasConnections[CANVAS_API_KEY] = canvasConnection(CANVAS_API_KEY)
 
     workingConnection = activeCanvasConnections[CANVAS_API_KEY] #Alias for current Canvas connection
     convertedEvents: list(EventInput) = [] #Storage for converted Assignments/Quizzes
@@ -853,16 +859,26 @@ def pullFromCanvas(CANVAS_API_KEY: str):
         quizzesToAddList += courseContents["quizzes"]
 
     #Iterate through lists, converting and combining into a unified EventInput list
+    #Right now, we are avoiding elements that don't have any date
     for assignment in assignmentsToAddList:
-        convertedEvents.append( assignment_or_quiz_to_event_input(assignment) )
+        try:
+            convertedEvents.append( assignment_or_quiz_to_event_input(assignment) )
+        except ValueError as e:
+            pass
     for quiz in quizzesToAddList:
-        convertedEvents.append( assignment_or_quiz_to_event_input(quiz) )
+        try:
+            convertedEvents.append( assignment_or_quiz_to_event_input(quiz) )
+        except ValueError as e:
+            pass
     for calendarEvent in calendarEventsToAddList:
-        convertedEvents.append( calendar_event_to_event_input(calendarEvent) )
+        try:
+            convertedEvents.append( calendar_event_to_event_input(calendarEvent) )
+        except ValueError as e:
+            pass
 
     #Add convertedEvents to the events dictionary (database in future)
     for event in convertedEvents:
         events[uuid4()] = event #[note to self] suspicious
 
-    return {"message": "Events pulled from Canvas."}
 
+    return {"message": "Events pulled from Canvas."}
