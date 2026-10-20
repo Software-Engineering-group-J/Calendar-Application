@@ -125,7 +125,7 @@ class EventUpdate(BaseModel):
     completed: Optional[bool] = None
 
 class apiKeyMessage(BaseModel):
-    key: Optional[str] = None
+    key: str = None
 
 # ============================================================
 # Canvas integration classes
@@ -830,9 +830,11 @@ def delete_event(event_id: str):
 # ============================================================
 # Handle events from Canvas
 # ============================================================
-@app.get("/api/events/pullFromCanvas")
+@app.post("/api/events/pullFromCanvas")
 def pullFromCanvas(CANVAS_API_KEY: apiKeyMessage):
+
     '''Creates a new canvasConnection object from an API key, then reads and adds all assignments and quizzes as events.'''
+
     CANVAS_API_KEY = CANVAS_API_KEY.key
 
     if not CANVAS_API_KEY in activeCanvasConnections:
