@@ -1,5 +1,7 @@
 
 import { useEffect, useState } from 'react';
+import GroupScheduler from './GroupScheduler.jsx';
+import { localCalendarEvents, GROUP_STORAGE_KEY, GROUP_SCHEDULE_CHANGED } from './groupStorage.js';
 
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -113,8 +115,21 @@ const styles = {
   },
 };
 
-function App() {
+function CalendarPage() {
   const [events, setEvents] = useState([]);
+  const [localEvents, setLocalEvents] = useState(localCalendarEvents);
+  useEffect(() => {
+    const update = () => setLocalEvents(localCalendarEvents());
+    const onStorage = (event) => {
+      if (event.key === GROUP_STORAGE_KEY || event.key === null) update();
+    };
+    window.addEventListener('storage', onStorage);
+    window.addEventListener(GROUP_SCHEDULE_CHANGED, update);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener(GROUP_SCHEDULE_CHANGED, update);
+    };
+  }, []);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -184,6 +199,10 @@ function App() {
 
   // Open the Edit Event popup.
   function openEditForm(info) {
+    if (info.event.extendedProps.localGroupSchedule) {
+      window.location.hash = 'group-scheduling';
+      return;
+    }
     const event = info.event;
 
     const start = event.start || new Date();
@@ -308,14 +327,9 @@ function App() {
   }
 
   return (
-    <main style={styles.page}>
+    <div>
       {/* HEADER */}
       <header style={styles.header}>
-        <div>
-          <h1>📅 StudySync</h1>
-          <p>Team Calendar & Event Management</p>
-        </div>
-
         <button
           type="button"
           style={styles.button}
@@ -328,6 +342,7 @@ function App() {
       {/* CALENDAR */}
       <section style={styles.calendarCard}>
         <h2>Team Schedule</h2>
+        <p>Browser-local group events and busy times appear in purple. Select one to manage it in Group scheduling.</p>
 
         <p>
           Click a date to create an event.
@@ -358,7 +373,7 @@ function App() {
             center: 'title',
             right: 'dayGridMonth,timeGridWeek,timeGridDay',
           }}
-          events={events}
+          events={[...events, ...localEvents]}
           dateClick={handleDateClick}
           eventClick={openEditForm}
           height="auto"
@@ -492,6 +507,35 @@ function App() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function App() {
+  const readPage = () => window.location.hash === '#group-scheduling' ? 'groups' : 'calendar';
+  const [page, setPage] = useState(readPage);
+
+  useEffect(() => {
+    const onHashChange = () => setPage(readPage());
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+
+  useEffect(() => {
+    document.title = `${page === 'groups' ? 'Group scheduling' : 'Calendar'} | StudySync`;
+  }, [page]);
+
+  return (
+    <main style={styles.page}>
+      <header>
+        <h1>📅 StudySync</h1>
+        <p>Team Calendar &amp; Event Management</p>
+        <nav className="app-navigation" aria-label="Main navigation">
+          <a href="#calendar" aria-current={page === 'calendar' ? 'page' : undefined}>Calendar</a>
+          <a href="#group-scheduling" aria-current={page === 'groups' ? 'page' : undefined}>Group scheduling</a>
+        </nav>
+      </header>
+      {page === 'groups' ? <GroupScheduler /> : <CalendarPage />}
     </main>
   );
 }

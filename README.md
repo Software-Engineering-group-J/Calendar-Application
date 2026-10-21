@@ -1,5 +1,56 @@
 # StudySync
 
+## Group scheduling demo
+
+Each event has a **Show as: Busy / Free** setting, independent of participant
+count. Busy is the default (including older saved events). Overlapping busy
+events are rejected for both personal and group events. Free events may overlap
+and do not block later bookings. The setting applies to the entire event and
+all its participants; to represent partial attendance, record only the actual
+busy interval as a separate event. Editing preserves this setting.
+
+Open **Group scheduling** from the main navigation, or go directly to
+`/#group-scheduling`. The default Calendar page remains focused on the existing
+API-backed Team Schedule. Browser back/forward works between these views.
+
+The **Group scheduling** page is a browser-local prototype independent of the
+API-backed Team Schedule. Participants are manually managed, with unique
+IDs and distinct display names. There are no accounts or cross-device sharing.
+Local schedules persist in browser storage under `studysync-group-scheduling-v1`.
+Using a different browser or origin starts a separate schedule; clearing browser
+storage removes it.
+
+1. Add Alex, Sam, and Jordan as participants.
+2. Enter a busy event for Jordan, 10–11 AM, selecting only Jordan.
+3. Propose a group event for 10:30–11:30 AM with all three selected. Saving is
+   rejected and Jordan is identified as unavailable.
+4. Change the group event to 11 AM–noon and save. Events touching at their
+   boundaries are compatible.
+5. Refresh the page: the saved events remain. Edit the group event to verify all
+   participants are retained, or delete it to free their time.
+
+Return to Calendar to see local group events and busy times in purple alongside
+API events. They appear even if the backend is offline. Navigate to the event's
+date if it is outside the displayed month. Clicking a local event opens Group
+scheduling, where it can be edited or deleted. These local events are not
+uploaded to the API.
+
+Selecting one participant records busy time; selecting two or more creates a
+group event, without a fixed participant limit. Existing group events also block
+their participants' time. Editing excludes the event itself from comparison.
+Remove participants from their events before deleting participant records.
+
+`src/groupEvents.js` exports `compareCalendars(schedule)`, used by the form and
+the automated compatibility tests. Run `npm test` or `npm run test:run` to run
+Vitest, the same runner used by GitHub Actions. Tests cover the original two-user
+case, larger groups, a conflict in the last calendar, boundary times, invalid
+input, and the browser-local UI workflow. API responses are not required by this
+feature. The existing Team Schedule still needs a reachable backend.
+
+For a live CI/CD review, change a group-scheduling behavior or message with its
+corresponding test, push a feature branch, inspect GitHub Actions, and merge by
+PR to deploy the frontend through Amplify.
+
 [![Frontend CI/CD Pipeline](https://github.com/Supazz/Calendar-Application/actions/workflows/ci.yml/badge.svg?branch=CIpipeline)](https://github.com/Supazz/Calendar-Application/actions/workflows/ci.yml)
 
 ## Current Status
