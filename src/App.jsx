@@ -44,7 +44,7 @@ const styles = {
     maxWidth: '1200px',
     margin: '30px auto',
     padding: '24px',
-    fontFamily: 'Arial, sans-serif',
+    fontFamily: 'Arial, sans-serif',                // Change the font style of eveything here!
     color: '#1e293b',
   },
 
@@ -57,8 +57,9 @@ const styles = {
     marginBottom: '30px',
   },
 
+                                        
   button: {
-    background: 'blue',
+    background: 'red',                // + Add Event box Color location 
     color: 'white',
     border: 'none',
     borderRadius: '8px',
@@ -86,8 +87,8 @@ const styles = {
   },
 
   modal: {
-    background: 'white',
-    color: '#1e293b',
+    background: 'white',              // Change modal inside '+Add Event' background color
+    color: '#1e293b',                  // Change popup letter/text color 
     borderRadius: '12px',
     padding: '28px',
     width: '100%',
@@ -335,7 +336,7 @@ function CalendarPage() {
           style={styles.button}
           onClick={() => openAddForm()}
         >
-          + Add Event
+          + Add Event                                  {/* Change Words inside Add Event box */}
         </button>
       </header>
 
@@ -393,7 +394,7 @@ function CalendarPage() {
             <h2>
               {editingId
                 ? 'Edit Event'
-                : 'Add New Event'}
+                : 'Add New Event'} {/* Changes 'Add New Event' wording inside, '+ Add Event'  */}
             </h2>
 
             <form onSubmit={handleSubmit}>
@@ -409,11 +410,11 @@ function CalendarPage() {
                 onChange={(e) =>
                   updateField('title', e.target.value)
                 }
-                placeholder="e.g. Software Engineering Meeting"
-              />
+                placeholder="e.g. Software Engineering Meeting"   
+              />                                                    {/* Change SE Meeting location....above */}
 
               <label style={styles.label}>
-                Description
+                Description                                         {/* Change Description location */}             
               </label>
 
               <textarea
@@ -422,16 +423,16 @@ function CalendarPage() {
                   minHeight: '90px',
                   resize: 'vertical',
                 }}
-                value={form.description}
+                value={form.description}                  
                 onChange={(e) =>
                   updateField('description', e.target.value)
                 }
                 placeholder="Event details..."
-              />
+              />                                                    {/* Change Event Details inside Description Box, location */}  
 
               <label style={styles.label}>
                 Start Date & Time
-              </label>
+              </label>                                              {/* Change Start Date & Time, location */}
 
               <input
                 style={styles.input}
@@ -445,7 +446,7 @@ function CalendarPage() {
 
               <label style={styles.label}>
                 End Date & Time
-              </label>
+              </label>                                              {/* Change End Date & Time, location */}
 
               <input
                 style={styles.input}
@@ -474,7 +475,7 @@ function CalendarPage() {
                     ? 'Saving...'
                     : editingId
                     ? 'Save Changes'
-                    : 'Create Event'}
+                    : 'Create Event'}                          {/* Change 'Create Event' wording inside '+ Add Event' box  */}
                 </button>
 
                 <button
@@ -486,8 +487,8 @@ function CalendarPage() {
                     background: '#64748b',
                   }}
                 >
-                  Cancel
-                </button>
+                  Cancel                                        {/* Change the 'Cancel' wording right here! */}
+                </button>                        
 
                 {editingId && (
                   <button
