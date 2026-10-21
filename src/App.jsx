@@ -529,7 +529,7 @@ function App() {
   return (
     <main style={styles.page}>
       <header>
-        <h1>📅 StudySync</h1>
+        <h1>📅 StudySync?</h1>
         <p>Team Calendar &amp; Event Management</p>
         <nav className="app-navigation" aria-label="Main navigation">
           <a href="#calendar" aria-current={page === 'calendar' ? 'page' : undefined}>Calendar</a>
