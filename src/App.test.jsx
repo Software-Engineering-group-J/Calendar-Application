@@ -78,7 +78,8 @@ async function waitForInitialLoad() {
 }
 
 function getDateTimeInputs() {
-  return document.querySelectorAll('input[type="datetime-local"]');
+  const modal = screen.getByRole('heading', { name: /^(Add New Event|Edit Event)$/ }).parentElement;
+  return modal.querySelectorAll('input[type="datetime-local"]');
 }
 
 function fillEventForm({ title, description = '', start, end }) {
@@ -94,9 +95,22 @@ function fillEventForm({ title, description = '', start, end }) {
 }
 
 beforeEach(() => {
+  localStorage.clear();
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ events: [] })));
   vi.spyOn(window, 'alert').mockImplementation(() => {});
   vi.spyOn(window, 'confirm').mockReturnValue(true);
+});
+
+it('shows saved local group events even when the API is unavailable', async () => {
+  localStorage.setItem('studysync-group-scheduling-v1', JSON.stringify({
+    participants: [{ id: 'alex', name: 'Alex' }, { id: 'sam', name: 'Sam' }],
+    events: [{ id: 'local-1', title: 'Group review', start: '2026-10-21T10:00:00Z',
+      end: '2026-10-21T11:00:00Z', participantIds: ['alex', 'sam'] }],
+  }));
+  fetch.mockRejectedValue(new Error('Backend offline'));
+  render(<App />);
+  await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Backend offline'));
+  expect(screen.getByRole('button', { name: 'Group: Group review' })).toBeInTheDocument();
 });
 
 afterEach(() => {

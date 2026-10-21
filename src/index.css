@@ -3,6 +3,12 @@
   box-sizing: border-box;
 }
 
+.app-navigation { display: flex; flex-wrap: wrap; gap: 8px; border-bottom: 1px solid #cbd5e1; padding-bottom: 12px; margin: 24px 0; }
+.app-navigation a { display: inline-block; padding: 10px 16px; color: #334155; border-radius: 8px; text-decoration: none; font-weight: 600; }
+.app-navigation a:hover { background: #e2e8f0; }
+.app-navigation a[aria-current="page"] { background: #2563eb; color: white; }
+.app-navigation a:focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; }
+
 html,
 body,
 #root {

@@ -1,0 +1,15 @@
+.group-scheduler { margin: 24px 0; padding: 24px; background: white; border-radius: 12px; box-shadow: 0 4px 20px #00000014; }
+.group-columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 32px; }
+.group-scheduler label { display: block; margin: 12px 0 6px; font-weight: 600; }
+.group-scheduler input:not([type=checkbox]) { width: 100%; padding: 10px; border: 1px solid #94a3b8; border-radius: 6px; font-size: 1rem; }
+.group-scheduler button { margin: 10px 8px 0 0; padding: 9px 14px; background: #2563eb; color: white; border: 0; border-radius: 6px; cursor: pointer; }
+.group-scheduler button:disabled { opacity: .5; cursor: not-allowed; }
+.group-scheduler .group-secondary { background: #e2e8f0; color: #1e293b; }
+.group-scheduler fieldset { margin-top: 16px; border: 1px solid #94a3b8; border-radius: 6px; }
+.group-scheduler .group-checkbox { display: inline-flex; align-items: center; gap: 8px; margin: 8px 20px 8px 0; }
+.group-event-list { padding: 0; list-style: none; }
+.group-event-list li { padding: 16px 0; border-top: 1px solid #cbd5e1; line-height: 1.6; overflow-wrap: anywhere; }
+.group-error { color: #991b1b; background: #fef2f2; padding: 12px; }
+.group-scheduler select { width: 100%; padding: 10px; border: 1px solid #94a3b8; border-radius: 6px; font-size: 1rem; background: white; }
+.group-success { color: #166534; background: #f0fdf4; padding: 12px; }
+@media (max-width: 700px) { .group-columns { grid-template-columns: 1fr; } .group-scheduler { padding: 16px; } }
