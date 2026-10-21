@@ -121,7 +121,6 @@ export default function GroupScheduler() {
     <section className="group-scheduler" aria-labelledby="group-heading">
       <h2 id="group-heading">Group scheduling</h2>
       <p>Manage participant schedules here, then find a time everyone can attend.</p>
-      <p className="group-notice">Browser-local prototype: schedules stay in this browser. No accounts or shared API are used here. All times are shown in your local timezone.</p>
       {error && <p role="alert" className="group-error">{error}</p>}
       {message && <p role="status" className="group-success">{message}</p>}
       <div className="group-columns">

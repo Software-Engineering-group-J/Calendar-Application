@@ -1,5 +1,4 @@
 .group-scheduler { margin: 24px 0; padding: 24px; background: white; border-radius: 12px; box-shadow: 0 4px 20px #00000014; }
-.group-notice { padding: 12px; background: #eff6ff; border-left: 4px solid #2563eb; line-height: 1.5; }
 .group-columns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 32px; }
 .group-scheduler label { display: block; margin: 12px 0 6px; font-weight: 600; }
 .group-scheduler input:not([type=checkbox]) { width: 100%; padding: 10px; border: 1px solid #94a3b8; border-radius: 6px; font-size: 1rem; }
