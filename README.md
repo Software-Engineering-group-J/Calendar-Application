@@ -1,5 +1,104 @@
 # StudySync
 
+[![Frontend CI/CD Pipeline](https://github.com/Supazz/Calendar-Application/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Supazz/Calendar-Application/actions/workflows/ci.yml)
+
+## Project status — October 20, 2026
+
+StudySync is a calendar application with a React frontend connected to a Python FastAPI backend.
+
+- The frontend provides a calendar with month, week, and day views, navigation, and event creation, editing, and deletion.
+- The frontend sends event requests to the backend through its REST API.
+- The backend validates and serves events, and includes endpoints for filtering, upcoming events, scheduling conflicts, and event statistics.
+- The backend currently stores events in memory. Events are lost when the backend process restarts; persistent database storage has not been implemented.
+- GitHub Actions runs frontend linting, build, and tests on pushes and pull requests. After a successful run on `main`, it waits for the matching AWS Amplify frontend deployment and reports whether it succeeded.
+
+## Technology
+
+- **Frontend:** React, Vite, JavaScript, FullCalendar
+- **Backend:** Python, FastAPI, Pydantic, Uvicorn
+- **Hosting and automation:** AWS Amplify for the frontend; GitHub Actions for CI and production deployment verification
+
+## Run the application locally
+
+Run the backend and frontend in separate terminals. The frontend's development API URL defaults to `http://127.0.0.1:8000`, so no local `.env` file is required.
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/Supazz/Calendar-Application.git
+cd Calendar-Application
+```
+
+### 2. Start the backend
+
+Python 3.10 or newer is recommended. From the repository root, create and activate a virtual environment, then install the backend dependencies and start FastAPI:
+
+**macOS/Linux**
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r backend/requirements.txt
+python -m uvicorn main:app --app-dir backend --reload --host 127.0.0.1 --port 8000
+```
+
+**Windows PowerShell**
+
+```powershell
+py -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install fastapi pydantic uvicorn
+python -m uvicorn main:app --app-dir backend --reload --host 127.0.0.1 --port 8000
+```
+
+The API is available at `http://127.0.0.1:8000`. Interactive API documentation is at `http://127.0.0.1:8000/docs`. Keep this terminal running while using the app.
+
+### 3. Start the frontend
+
+In a second terminal, from the repository root:
+
+```bash
+npm ci
+npm run dev
+```
+
+Open the local URL printed by Vite, usually `http://localhost:5173`. The backend allows the default Vite local origins on ports 5173–5175.
+
+To stop either server, press `Ctrl+C` in its terminal. Because backend storage is in memory, restarting the backend clears the events.
+
+## CI/CD and production hosting
+
+The workflow is [`.github/workflows/ci.yml`](.github/workflows/ci.yml). On pushes and pull requests, it installs Node.js dependencies, runs linting, builds the frontend, and runs the frontend tests. On a successful push to `main`, the production job uses GitHub's OIDC identity to access AWS, finds the Amplify job for that commit, and waits for deployment to finish.
+
+AWS and deployment values are configured as GitHub Actions **variables** for the `production` environment: `AWS_ROLE_ARN`, `AWS_REGION`, `AMPLIFY_APP_ID`, and `PRODUCTION_URL`. The IAM role must trust this repository's GitHub OIDC identity for the `production` environment. AWS Amplify builds the frontend using [`amplify.yml`](amplify.yml). The FastAPI backend is not deployed by this workflow; it must be hosted separately and configured for the production frontend origin and API URL before production use.
+
+## Development commands
+
+```bash
+npm run lint
+npm run build
+npm run test:run
+```
+
+Backend tests are in `backend/test_events.py`.
+
+Run them from the repository root after installing the backend dependencies:
+
+```bash
+python -m unittest backend.test_events
+```
+
+## Current limitations and next steps
+
+- Add persistent database storage so events survive backend restarts and can be shared across sessions.
+- Deploy the FastAPI backend and configure production CORS and the frontend's `VITE_API_URL`.
+- Connect additional StudySync features such as courses, assignments, and study planning to the API.
+- Explore Canvas integration after the core application and storage are established.
+
+## Development workflow
+
+The project uses Scrum and feature branches. Changes should be tested, pushed to GitHub, and reviewed in a pull request before merging into `main`.
+
 ## Group scheduling demo
 
 Each event has a **Show as: Busy / Free** setting, independent of participant
@@ -51,132 +150,7 @@ For a live CI/CD review, change a group-scheduling behavior or message with its
 corresponding test, push a feature branch, inspect GitHub Actions, and merge by
 PR to deploy the frontend through Amplify.
 
-[![Frontend CI/CD Pipeline](https://github.com/Supazz/Calendar-Application/actions/workflows/ci.yml/badge.svg?branch=CIpipeline)](https://github.com/Supazz/Calendar-Application/actions/workflows/ci.yml)
-
-## Current Status
-
-StudySync is currently in the early development phase.
-
-The React frontend has been developed using React, Vite, and FullCalendar.
-
-**Currently implemented frontend features:**
-
-- Interactive calendar with Month, Week, and Day views
-- Calendar navigation between dates
-- Add Event form for creating new events
-- Event titles and descriptions
-- Start and end date/time selection
-- Editing existing events
-- Deleting events
-- Validation of event titles and date/time ranges
-- Browser-based event persistence using localStorage
-
-Events are currently stored locally in the user's browser. They remain available after refreshing the page but are not yet shared between users or synchronized with a backend database.
-
-The Python backend is being developed separately from the React frontend. Backend integration and centralized database storage remain future development tasks.
-
-
-
-### Frontend
-
-- React - User interface and component management
-- Vite - Frontend development and build tool
-- JavaScript - Frontend programming
-- CSS - Application styling
-- FullCalendar - Interactive calendar, date navigation, and event display
-- localStorage - Temporary browser-based event persistence
-
-### Backend (Under Development)
-
-- Python - Planned backend programming and application logic
-- SQLite - Planned database storage
-- Canvas REST API - Planned integration for importing courses, assignments, and due dates
-
-### Clone the Repository
-
-Open a terminal and navigate to the location where you want to store the project.
-
-Then clone the repository:
-
-```bash
-git clone https://github.com/Supazz/Calendar-Application.git
-cd Calendar-Application
-```
-
-### Frontend Setup
-
-Install the React dependencies:
-
-```bash
-npm install
-```
-
-## Running the Application
-
-The React frontend can currently be run independently using:
-
-```bash
-npm run dev
-```
-
-Vite will provide a local URL where the application can be opened in a web browser.
-
-To exit Vite, press Ctrl + C while in the terminal. 
-
-The backend is currently under development and is not yet fully connected to the React frontend.
-
-
-
-
-
-## Development Workflow
-
-The project uses Scrum and is developed through sprints and product backlog items.
-
-Team members should:
-1. Create or select an issue describing the work to be completed.
-2. Create a feature branch for the work.
-3. Make and test changes on the feature branch.
-4. Commit changes using clear commit messages.
-5. Push the branch to GitHub.
-6. Open a pull request for review.
-7. Merge the completed work into the main branch after review.
-
-### Branches
-
-- `main` - Main project branch
-- Feature branches - Used for individual features and changes
-- Frontend/backend branches may be used for larger areas of development
-
-### Development Guidelines
-
-- Keep changes related to the issue or feature being developed.
-- Use descriptive commit messages.
-- Test changes before creating a pull request.
-- Do not commit passwords, API keys, or other sensitive information.
-- Keep documentation updated when project functionality or setup requirements change.
-- Communicate with the team before making major structural changes.
-- Create a separate branch for new features or significant changes.
-- Do not directly modify the main branch unless the team has agreed that the change should be made there.
-
-
-## Future Development
-
-- Connecting the React frontend to the Python backend
-- Implementing SQLite database storage
-- Replacing browser localStorage with backend-managed event persistence
-- Adding course management
-- Adding assignment and exam management
-- Implementing task priorities and estimated completion times
-- Allowing students to enter available study times
-- Implementing automated study schedule generation
-- Adding task completion and progress tracking
-- Improving calendar functionality and event categorization
-- Integrating the Canvas REST API
-- Exploring email integration
-- Supporting shared data across users
-
-## Team Members
+## Team
 
 - Diego Arauz
 - Carlos Garcia
