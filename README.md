@@ -122,10 +122,11 @@ The project uses Scrum and feature branches. Changes should be tested, pushed to
 
 Our backlog is tracked in GitHub Issues so the team can add, prioritize, and assign work as new features and tasks are identified. The current backlog includes planned enhancements, sprint items, and open engineering tasks for future development.
 
-View the active backlog and sprint tracking here:
+View the active backlog, sprint tracking, and kanban board here:
 
 - [GitHub Issues](https://github.com/Software-Engineering-group-J/Calendar-Application/issues)
 - [Sprint 2 milestone / backlog](https://github.com/Software-Engineering-group-J/Calendar-Application/milestone/2)
+- [Kanban board](https://github.com/orgs/Software-Engineering-group-J/projects/1/views/1)
 
 ## Group scheduling demo
 
