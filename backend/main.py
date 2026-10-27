@@ -59,6 +59,7 @@ class Category(str, Enum):
     study = "study"
     assignment = "assignment"
     exam = "exam"
+    course = "course"
     meeting = "meeting"
     personal = "personal"
     other = "other"
@@ -88,6 +89,7 @@ class EventInput(BaseModel):
 
     location: Optional[str] = None
     course: Optional[str] = None
+    color: Optional[str] = None
 
     completed: bool = False
 
@@ -109,6 +111,7 @@ class EventUpdate(BaseModel):
 
     location: Optional[str] = None
     course: Optional[str] = None
+    color: Optional[str] = None
 
     completed: Optional[bool] = None
 
