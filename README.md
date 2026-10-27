@@ -10,7 +10,7 @@ StudySync is a calendar application with a React frontend connected to a Python 
 - The frontend sends event requests to the backend through its REST API.
 - The backend validates and serves events, and includes endpoints for filtering, upcoming events, scheduling conflicts, and event statistics.
 - The backend currently stores events in memory. Events are lost when the backend process restarts; persistent database storage has not been implemented.
-- GitHub Actions runs frontend linting, build, and tests on pushes and pull requests. After a successful run on `main`, it waits for the matching AWS Amplify frontend deployment and reports whether it succeeded.
+- GitHub Actions runs frontend linting, build, and tests on pushes and pull requests. After a successful run on `main`, it waits for the matching AWS Amplify frontend deployment and reports whether it is healthy.
 
 ## Technology
 
@@ -20,7 +20,7 @@ StudySync is a calendar application with a React frontend connected to a Python 
 
 ## Run the application locally
 
-Before starting, install **Node.js 22 or newer** (which includes npm) and **Python 3.10 or newer**. Get Node.js from [nodejs.org](https://nodejs.org/) and Python from [python.org](https://www.python.org/downloads/). On Windows, enable the Python launcher (`py`) during installation. You can check the installations with `node --version`, `npm --version`, and `python --version` (on Windows, `py --version` also works).
+Before starting, install **Node.js 22 or newer** (which includes npm) and **Python 3.10 or newer**. Get Node.js from [nodejs.org](https://nodejs.org/) and Python from [python.org](https://www.python.org/).
 
 Run the backend and frontend in separate terminals. The frontend's development API URL defaults to `http://127.0.0.1:8000`, so no local `.env` file is required.
 
@@ -33,7 +33,7 @@ cd Calendar-Application
 
 ### 2. Install backend dependencies and start the backend
 
-From the repository root, create and activate a virtual environment, install the pinned backend dependencies, and start FastAPI. The virtual environment keeps project packages separate from other Python projects.
+From the repository root, create and activate a virtual environment, install the pinned backend dependencies, and start FastAPI. The virtual environment keeps project packages separate from other Python projects on the machine.
 
 **macOS/Linux**
 
@@ -70,9 +70,9 @@ To stop either server, press `Ctrl+C` in its terminal. Because backend storage i
 
 ## CI/CD and production hosting
 
-The workflow is [`.github/workflows/ci.yml`](.github/workflows/ci.yml). On pushes and pull requests, it installs Node.js dependencies, runs linting, builds the frontend, and runs the frontend tests. On a successful push to `main`, the production job uses GitHub's OIDC identity to access AWS, finds the Amplify job for that commit, and waits for deployment to finish.
+The workflow is [`.github/workflows/ci.yml`](.github/workflows/ci.yml). On pushes and pull requests, it installs Node.js dependencies, runs linting, builds the frontend, and runs the frontend tests. On `main`, it also verifies the production deployment status in AWS Amplify.
 
-AWS and deployment values are configured as GitHub Actions **variables** for the `production` environment: `AWS_ROLE_ARN`, `AWS_REGION`, `AMPLIFY_APP_ID`, and `PRODUCTION_URL`. The IAM role must trust this repository's GitHub OIDC identity for the `production` environment. AWS Amplify builds the frontend using [`amplify.yml`](amplify.yml). The FastAPI backend is not deployed by this workflow; it must be hosted separately and configured for the production frontend origin and API URL before production use.
+AWS and deployment values are configured as GitHub Actions **variables** for the `production` environment: `AWS_ROLE_ARN`, `AWS_REGION`, `AMPLIFY_APP_ID`, and `PRODUCTION_URL`. The IAM role must trust the GitHub OIDC provider and allow the Amplify deployment action to update the app.
 
 ## Development commands
 
@@ -89,7 +89,7 @@ npm run test:run
 
 ### Backend tests
 
-These tests use Python and do **not** require Node.js/npm or a running backend server. From the repository root, create and activate a virtual environment as shown in **Run the application locally**, then install backend dependencies and run the unittest suite:
+These tests use Python and do **not** require Node.js/npm or a running backend server. From the repository root, create and activate a virtual environment as shown in **Run the application locally**, then install the backend requirements and run the backend unit tests:
 
 ```bash
 python -m pip install -r backend/requirements.txt
@@ -117,6 +117,15 @@ npm run build
 ## Development workflow
 
 The project uses Scrum and feature branches. Changes should be tested, pushed to GitHub, and reviewed in a pull request before merging into `main`.
+
+## Backlog
+
+Our backlog is tracked in GitHub Issues so the team can add, prioritize, and assign work as new features and tasks are identified. The current backlog includes planned enhancements, sprint items, and open engineering tasks for future development.
+
+View the active backlog and sprint tracking here:
+
+- [GitHub Issues](https://github.com/Software-Engineering-group-J/Calendar-Application/issues)
+- [Sprint 2 milestone / backlog](https://github.com/Software-Engineering-group-J/Calendar-Application/milestone/2)
 
 ## Group scheduling demo
 
