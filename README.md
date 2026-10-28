@@ -18,11 +18,9 @@ StudySync is a calendar application with a React frontend connected to a Python 
 - **Backend:** Python, FastAPI, Pydantic, Uvicorn
 - **Hosting and automation:** AWS Amplify for the frontend; GitHub Actions for CI and production deployment verification
 
-## Run the application locally
+## Prerequisites and Installation
 
 Before starting, install **Node.js 22 or newer** (which includes npm) and **Python 3.10 or newer**. Get Node.js from [nodejs.org](https://nodejs.org/) and Python from [python.org](https://www.python.org/).
-
-Run the backend and frontend in separate terminals. The frontend's development API URL defaults to `http://127.0.0.1:8000`, so no local `.env` file is required.
 
 ### 1. Clone the repository
 
@@ -31,9 +29,13 @@ git clone https://github.com/Supazz/Calendar-Application.git
 cd Calendar-Application
 ```
 
-### 2. Install backend dependencies and start the backend
+### 2. Install backend dependencies 
 
-From the repository root, create and activate a virtual environment, install the pinned backend dependencies, and start FastAPI. The virtual environment keeps project packages separate from other Python projects on the machine.
+From the repository root, create and activate a virtual environment and install the pinned backend dependencies. 
+
+The virtual environment keeps project packages separate from other Python projects on the machine. 
+
+Ensure the Python virtual environment (.venv) is activated in the terminal by verifying that (.venv) appears at the beginning of the terminal prompt. The Python virtual environment is not required to be activated to install the frontend dependencies.
 
 **macOS/Linux**
 
@@ -41,7 +43,6 @@ From the repository root, create and activate a virtual environment, install the
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r backend/requirements.txt
-python -m uvicorn main:app --app-dir backend --reload --host 127.0.0.1 --port 8000
 ```
 
 **Windows PowerShell**
@@ -50,17 +51,67 @@ python -m uvicorn main:app --app-dir backend --reload --host 127.0.0.1 --port 80
 py -m venv .venv
 .venv\Scripts\Activate.ps1
 python -m pip install -r backend/requirements.txt
-python -m uvicorn main:app --app-dir backend --reload --host 127.0.0.1 --port 8000
 ```
 
-The API is available at `http://127.0.0.1:8000`. Interactive API documentation is at `http://127.0.0.1:8000/docs`. Keep this terminal running while using the app.
+If PowerShell blocks activation with an error such as `running scripts is disabled on this system`, run the following command in the same terminal before activating the environment:
 
-### 3. Start the frontend
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\.venv\Scripts\Activate.ps1
+```
+
+This only changes the execution policy for the current PowerShell session, so it does not affect your machine-wide settings. To exit the virtual environment later, run:
+
+```bash
+deactivate
+```
+
+### 3. Install frontend dependencies
+
+```bash
+npm ci
+```
+This installs the frontend dependencies specified by the project's lockfile.
+
+
+## Run the application locally
+
+Run the backend and frontend in two separate terminals, both opened in the repository root (Calendar-Application).
+
+The frontend's development API URL defaults to http://127.0.0.1:8000, so no local .env file is required. 
+
+Before starting the backend, activate the Python virtual environment (.venv) in the backend terminal and verify that (.venv) appears at the beginning of the terminal prompt. The frontend terminal does not require the Python virtual environment to be activated.
+
+To activate the environment:
+
+**macOS/Linux**
+
+```bash
+source .venv/bin/activate
+```
+
+**Windows PowerShell**
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+### 1. Start the backend (Terminal 1)
+
+With the virtual environment activated, run:
+
+```bash
+python -m uvicorn main:app --app-dir backend --reload --host 127.0.0.1 --port 8000
+```
+The API is available at http://127.0.0.1:8000. Interactive API documentation is at http://127.0.0.1:8000/docs. 
+
+Keep this terminal running while using the app.
+
+### 2. Start the frontend (Terminal 2)
 
 In a second terminal, from the repository root:
 
 ```bash
-npm ci
 npm run dev
 ```
 
@@ -68,35 +119,58 @@ Open the local URL printed by Vite, usually `http://localhost:5173`. The backend
 
 To stop either server, press `Ctrl+C` in its terminal. Because backend storage is in memory, restarting the backend clears the events.
 
-## CI/CD and production hosting
-
-The workflow is [`.github/workflows/ci.yml`](.github/workflows/ci.yml). On pushes and pull requests, it installs Node.js dependencies, runs linting, builds the frontend, and runs the frontend tests. On `main`, it also verifies the production deployment status in AWS Amplify.
-
-AWS and deployment values are configured as GitHub Actions **variables** for the `production` environment: `AWS_ROLE_ARN`, `AWS_REGION`, `AMPLIFY_APP_ID`, and `PRODUCTION_URL`. The IAM role must trust the GitHub OIDC provider and allow the Amplify deployment action to update the app.
-
 ## Development commands
 
 ### Frontend tests
 
-These tests use Node.js/npm and do **not** require Python or a running backend. From the repository root, install the locked JavaScript dependencies (once per checkout), then run the Vitest suite:
+These tests use Node.js/npm and do **not** require Python, a running backend, or a Python virtual environment. From the repository root, install the locked JavaScript dependencies (once per checkout), then run the Vitest suite:
 
 ```bash
-npm ci
 npm run test:run
 ```
+If you have not installed the frontend dependencies yet, run npm ci first.
 
 `npm test` runs the same one-shot test suite. `npm run test:watch` keeps Vitest running and watches for changes. GitHub Actions runs `npm run test:run`.
 
-### Backend tests
+### Backend Tests
 
-These tests use Python and do **not** require Node.js/npm or a running backend server. From the repository root, create and activate a virtual environment as shown in **Run the application locally**, then install the backend requirements and run the backend unit tests:
+These tests use Python and do **not** require Node.js/npm or a running backend server.
+
+From the repository root, create and activate the virtual environment as described in Prerequisites and Installation and ensure the backend dependencies are installed.
+
+To activate the environment:
+
+**macOS/Linux**
 
 ```bash
-python -m pip install -r backend/requirements.txt
+source .venv/bin/activate
+```
+
+**Windows PowerShell**
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+With the virtual environment activated, run unit tests as follows:
+
+**Windows (PowerShell)**
+
+```powershell
 python -m unittest discover -s test/backend_tests -p "test_*.py"
 ```
 
-On Windows, use `py -m pip install -r backend/requirements.txt` if `python` is not on PATH. The test command can still be run with `python -m unittest discover -s test/backend_tests -p "test_*.py"` after activating the environment.
+**macOS/Linux**
+
+```bash
+python -m unittest discover -s test/backend_tests -p "test_*.py"
+```
+
+When finished, deactivate the virtual environment:
+
+```bash
+deactivate
+```
 
 ### Frontend quality checks
 
@@ -106,6 +180,12 @@ These optional checks also use Node.js/npm:
 npm run lint
 npm run build
 ```
+
+## CI/CD and production hosting
+
+The workflow is [`.github/workflows/ci.yml`](.github/workflows/ci.yml). On pushes and pull requests, it installs Node.js dependencies, runs linting, builds the frontend, and runs the frontend tests. On `main`, it also verifies the production deployment status in AWS Amplify.
+
+AWS and deployment values are configured as GitHub Actions **variables** for the `production` environment: `AWS_ROLE_ARN`, `AWS_REGION`, `AMPLIFY_APP_ID`, and `PRODUCTION_URL`. The IAM role must trust the GitHub OIDC provider and allow the Amplify deployment action to update the app.
 
 ## Current limitations and next steps
 
