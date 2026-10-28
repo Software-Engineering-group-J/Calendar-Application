@@ -1,6 +1,6 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { compareCalendars, isCalendarAvailable } from './groupEvents.js';
+import { compareCalendars, isCalendarAvailable } from '../../src/groupEvents.js';
 
 const event = (start, end) => ({
   start: `2026-10-14T${start}:00Z`,

@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import App from './App.jsx';
+import App from '../../src/App.jsx';
 
 vi.mock('@fullcalendar/react', () => ({
   default: ({ events = [], dateClick, eventClick }) => (
@@ -83,7 +83,7 @@ function getDateTimeInputs() {
 }
 
 function fillEventForm({ title, description = '', start, end }) {
-  fireEvent.change(screen.getByPlaceholderText(/software engineering meeting/i), {
+  fireEvent.change(screen.getByLabelText('Event Title'), {
     target: { value: title },
   });
   fireEvent.change(screen.getByPlaceholderText('Event details...'), {
@@ -161,6 +161,10 @@ describe('StudySync calendar', () => {
       description: 'Chapter 4',
       start: new Date('2026-04-15T10:00').toISOString(),
       end: new Date('2026-04-15T11:00').toISOString(),
+      category: 'other',
+      priority: 'medium',
+      course: null,
+      color: null,
     });
   });
 
