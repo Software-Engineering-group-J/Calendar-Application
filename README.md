@@ -2,7 +2,7 @@
 
 [![Frontend CI/CD Pipeline](https://github.com/Supazz/Calendar-Application/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Supazz/Calendar-Application/actions/workflows/ci.yml)
 
-## Project status — October 20, 2026
+## Project status — October 27, 2026
 
 StudySync is a calendar application with a React frontend connected to a Python FastAPI backend.
 
