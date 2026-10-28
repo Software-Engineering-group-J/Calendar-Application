@@ -93,7 +93,7 @@ These tests use Python and do **not** require Node.js/npm or a running backend s
 
 ```bash
 python -m pip install -r backend/requirements.txt
-python -m unittest backend.test_events
+python -m unittest discover -s test/backend_tests -p "test_*.py"
 ```
 
 On Windows, use `py -m pip install -r backend/requirements.txt` if `python` is not on PATH. The test command can still be run with `python -m unittest backend.test_events` after activating the environment.
