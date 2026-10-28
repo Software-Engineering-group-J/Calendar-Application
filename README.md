@@ -96,7 +96,7 @@ python -m pip install -r backend/requirements.txt
 python -m unittest discover -s test/backend_tests -p "test_*.py"
 ```
 
-On Windows, use `py -m pip install -r backend/requirements.txt` if `python` is not on PATH. The test command can still be run with `python -m unittest backend.test_events` after activating the environment.
+On Windows, use `py -m pip install -r backend/requirements.txt` if `python` is not on PATH. The test command can still be run with `python -m unittest discover -s test/backend_tests -p "test_*.py"` after activating the environment.
 
 ### Frontend quality checks
 
