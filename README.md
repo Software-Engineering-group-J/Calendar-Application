@@ -2,7 +2,7 @@
 
 [![Frontend CI/CD Pipeline](https://github.com/Supazz/Calendar-Application/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Supazz/Calendar-Application/actions/workflows/ci.yml)
 
-## Project status — October 20, 2026
+## Project status — October 27, 2026
 
 StudySync is a calendar application with a React frontend connected to a Python FastAPI backend.
 
@@ -10,7 +10,7 @@ StudySync is a calendar application with a React frontend connected to a Python 
 - The frontend sends event requests to the backend through its REST API.
 - The backend validates and serves events, and includes endpoints for filtering, upcoming events, scheduling conflicts, and event statistics.
 - The backend currently stores events in memory. Events are lost when the backend process restarts; persistent database storage has not been implemented.
-- GitHub Actions runs frontend linting, build, and tests on pushes and pull requests. After a successful run on `main`, it waits for the matching AWS Amplify frontend deployment and reports whether it succeeded.
+- GitHub Actions runs frontend linting, build, and tests on pushes and pull requests. After a successful run on `main`, it waits for the matching AWS Amplify frontend deployment and reports whether it is healthy.
 
 ## Technology
 
@@ -19,6 +19,8 @@ StudySync is a calendar application with a React frontend connected to a Python 
 - **Hosting and automation:** AWS Amplify for the frontend; GitHub Actions for CI and production deployment verification
 
 ## Run the application locally
+
+Before starting, install **Node.js 22 or newer** (which includes npm) and **Python 3.10 or newer**. Get Node.js from [nodejs.org](https://nodejs.org/) and Python from [python.org](https://www.python.org/).
 
 Run the backend and frontend in separate terminals. The frontend's development API URL defaults to `http://127.0.0.1:8000`, so no local `.env` file is required.
 
@@ -29,9 +31,9 @@ git clone https://github.com/Supazz/Calendar-Application.git
 cd Calendar-Application
 ```
 
-### 2. Start the backend
+### 2. Install backend dependencies and start the backend
 
-Python 3.10 or newer is recommended. From the repository root, create and activate a virtual environment, then install the backend dependencies and start FastAPI:
+From the repository root, create and activate a virtual environment, install the pinned backend dependencies, and start FastAPI. The virtual environment keeps project packages separate from other Python projects on the machine.
 
 **macOS/Linux**
 
@@ -47,7 +49,7 @@ python -m uvicorn main:app --app-dir backend --reload --host 127.0.0.1 --port 80
 ```powershell
 py -m venv .venv
 .venv\Scripts\Activate.ps1
-python -m pip install fastapi pydantic uvicorn
+python -m pip install -r backend/requirements.txt
 python -m uvicorn main:app --app-dir backend --reload --host 127.0.0.1 --port 8000
 ```
 
@@ -68,24 +70,41 @@ To stop either server, press `Ctrl+C` in its terminal. Because backend storage i
 
 ## CI/CD and production hosting
 
-The workflow is [`.github/workflows/ci.yml`](.github/workflows/ci.yml). On pushes and pull requests, it installs Node.js dependencies, runs linting, builds the frontend, and runs the frontend tests. On a successful push to `main`, the production job uses GitHub's OIDC identity to access AWS, finds the Amplify job for that commit, and waits for deployment to finish.
+The workflow is [`.github/workflows/ci.yml`](.github/workflows/ci.yml). On pushes and pull requests, it installs Node.js dependencies, runs linting, builds the frontend, and runs the frontend tests. On `main`, it also verifies the production deployment status in AWS Amplify.
 
-AWS and deployment values are configured as GitHub Actions **variables** for the `production` environment: `AWS_ROLE_ARN`, `AWS_REGION`, `AMPLIFY_APP_ID`, and `PRODUCTION_URL`. The IAM role must trust this repository's GitHub OIDC identity for the `production` environment. AWS Amplify builds the frontend using [`amplify.yml`](amplify.yml). The FastAPI backend is not deployed by this workflow; it must be hosted separately and configured for the production frontend origin and API URL before production use.
+AWS and deployment values are configured as GitHub Actions **variables** for the `production` environment: `AWS_ROLE_ARN`, `AWS_REGION`, `AMPLIFY_APP_ID`, and `PRODUCTION_URL`. The IAM role must trust the GitHub OIDC provider and allow the Amplify deployment action to update the app.
 
 ## Development commands
+
+### Frontend tests
+
+These tests use Node.js/npm and do **not** require Python or a running backend. From the repository root, install the locked JavaScript dependencies (once per checkout), then run the Vitest suite:
+
+```bash
+npm ci
+npm run test:run
+```
+
+`npm test` runs the same one-shot test suite. `npm run test:watch` keeps Vitest running and watches for changes. GitHub Actions runs `npm run test:run`.
+
+### Backend tests
+
+These tests use Python and do **not** require Node.js/npm or a running backend server. From the repository root, create and activate a virtual environment as shown in **Run the application locally**, then install the backend requirements and run the backend unit tests:
+
+```bash
+python -m pip install -r backend/requirements.txt
+python -m unittest backend.test_events
+```
+
+On Windows, use `py -m pip install -r backend/requirements.txt` if `python` is not on PATH. The test command can still be run with `python -m unittest backend.test_events` after activating the environment.
+
+### Frontend quality checks
+
+These optional checks also use Node.js/npm:
 
 ```bash
 npm run lint
 npm run build
-npm run test:run
-```
-
-Backend tests are in `backend/test_events.py`.
-
-Run them from the repository root after installing the backend dependencies:
-
-```bash
-python -m unittest backend.test_events
 ```
 
 ## Current limitations and next steps
@@ -98,6 +117,16 @@ python -m unittest backend.test_events
 ## Development workflow
 
 The project uses Scrum and feature branches. Changes should be tested, pushed to GitHub, and reviewed in a pull request before merging into `main`.
+
+## Backlog
+
+Our backlog is tracked in GitHub Issues so the team can add, prioritize, and assign work as new features and tasks are identified. The current backlog includes planned enhancements, sprint items, and open engineering tasks for future development.
+
+View the active backlog, sprint tracking, and kanban board here:
+
+- [GitHub Issues](https://github.com/Software-Engineering-group-J/Calendar-Application/issues)
+- [Sprint 2 milestone / backlog](https://github.com/Software-Engineering-group-J/Calendar-Application/milestone/2)
+- [Kanban board](https://github.com/orgs/Software-Engineering-group-J/projects/1/views/1)
 
 ## Group scheduling demo
 
@@ -145,10 +174,6 @@ Vitest, the same runner used by GitHub Actions. Tests cover the original two-use
 case, larger groups, a conflict in the last calendar, boundary times, invalid
 input, and the browser-local UI workflow. API responses are not required by this
 feature. The existing Team Schedule still needs a reachable backend.
-
-For a live CI/CD review, change a group-scheduling behavior or message with its
-corresponding test, push a feature branch, inspect GitHub Actions, and merge by
-PR to deploy the frontend through Amplify.
 
 ## Team
 
