@@ -175,10 +175,6 @@ case, larger groups, a conflict in the last calendar, boundary times, invalid
 input, and the browser-local UI workflow. API responses are not required by this
 feature. The existing Team Schedule still needs a reachable backend.
 
-For a live CI/CD review, change a group-scheduling behavior or message with its
-corresponding test, push a feature branch, inspect GitHub Actions, and merge by
-PR to deploy the frontend through Amplify.
-
 ## Team
 
 - Diego Arauz
