@@ -1,4 +1,6 @@
 // Helper function representing the notification logic
+import { describe, expect, test } from 'vitest';
+
 function generateNotification(eventTitle, timeUntilMinutes, recipientRole) {
     if (!typeof eventTitle === 'string' || !eventTitle.trim()) {
         throw new Error("Event title must be a non-empty string.");
