@@ -73,3 +73,20 @@ export async function deleteEvent(id) {
 
   return await response.json();
 }
+
+// ==========================================
+// Request Canvas reload
+// ==========================================
+export async function pullCanvas(apiKey) {
+  const response = await fetch ( `${API_URL}/api/events/pullFromCanvas`,
+    {method: 'POST',
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({key: apiKey})
+    } )
+
+  if (!response.ok) {
+    throw new Error('Failed to request Canvas event update')
+  }
+
+  return await response.json();
+}

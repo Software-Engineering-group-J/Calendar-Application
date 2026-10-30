@@ -13,6 +13,7 @@ import {
   createEvent,
   updateEvent,
   deleteEvent,
+  pullCanvas
 } from './api.js';
 
 const COURSE_COLORS = ['#2563eb', '#16a34a', '#9333ea', '#ea580c', '#0891b2', '#db2777', '#ca8a04', '#475569'];
@@ -199,8 +200,11 @@ function CalendarPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(false); //For add/edit form
   const [editingId, setEditingId] = useState(null);
+
+  const [showCanvasForm, setShowCanvasForm] = useState(false); //For canvas key form
+  var canvas_api_key;
 
   const [form, setForm] = useState({
     title: '',
@@ -258,6 +262,34 @@ function CalendarPage() {
       active = false;
     };
   }, []);
+
+  //Try to pull events from the specified Canvas key.
+  function canvasPulled(e) {
+    event.preventDefault();
+
+    const form = e.target;
+    const formData = new FormData(form);
+
+    canvas_api_key = formData.get("key");
+
+    console.log(pullCanvas( canvas_api_key ));
+    setShowCanvasForm(false);
+  }
+
+  //Main widget for Canvas API key
+  function CanvasKeyPopup() {
+    return (
+    <div>
+    <form onSubmit={canvasPulled} >
+    <h2 htmlFor="keybar">API Key</h2>
+    <input id = "keybar" name = "key"/>
+
+    <button type = "submit"> Pull </button>
+    <button type = "button" onClick={ ()=>setShowCanvasForm(false) } > Cancel </button>
+
+    </form> </div>);
+  }
+
 
   // Open the Add Event popup.
   function openAddForm(date = new Date(), category = 'other') {
@@ -469,10 +501,19 @@ function CalendarPage() {
     <div>
       {/* HEADER */}
       <header style={styles.header}>
-        <button type="button" style={styles.button} onClick={() => openAddForm()}>
+        <button type = "button" style = {styles.button} onClick={ ()=> setShowCanvasForm(true) } >Import Canvas</button>
+
+        <button
+          type="button"
+          style={styles.button}
+          onClick={() => openAddForm()}
+        >
           + Add Event
         </button>
       </header>
+
+      {/* Canvas form entry*/}
+      {showCanvasForm && CanvasKeyPopup()}
 
       {/* CALENDAR */}
       <section style={styles.calendarCard}>
