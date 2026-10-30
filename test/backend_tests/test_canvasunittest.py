@@ -6,9 +6,9 @@
 
 #Unit tests for canvasConnection
 import unittest
-from canvasConnection import canvasConnection
+from backend.canvasConnection import canvasConnection
 from datetime import datetime as dt
-from main import assignment_or_quiz_to_event_input, EventInput
+from backend.main import assignment_or_quiz_to_event_input, EventInput
 
 #Import personal Canvas API key from file "PPCKEY"
 keyPresent = False

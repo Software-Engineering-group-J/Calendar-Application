@@ -10,7 +10,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 # for canvas
-from canvasConnection import canvasConnection
+if __package__:
+    from .canvasConnection import canvasConnection
+else:
+    from canvasConnection import canvasConnection
 
 # for type hinting
 from canvasapi.assignment import Assignment
@@ -67,6 +70,7 @@ class Category(str, Enum):
     study = "study"
     assignment = "assignment"
     exam = "exam"
+    course = "course"
     meeting = "meeting"
     personal = "personal"
     other = "other"
@@ -96,6 +100,7 @@ class EventInput(BaseModel):
 
     location: Optional[str] = None
     course: Optional[str] = None
+    color: Optional[str] = None
 
     completed: bool = False
 
@@ -117,6 +122,7 @@ class EventUpdate(BaseModel):
 
     location: Optional[str] = None
     course: Optional[str] = None
+    color: Optional[str] = None
 
     completed: Optional[bool] = None
 

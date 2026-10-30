@@ -1,131 +1,261 @@
 # StudySync
 
-[![Frontend CI/CD Pipeline](https://github.com/Supazz/Calendar-Application/actions/workflows/ci.yml/badge.svg?branch=CIpipeline)](https://github.com/Supazz/Calendar-Application/actions/workflows/ci.yml)
+[![Frontend CI/CD Pipeline](https://github.com/Supazz/Calendar-Application/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Supazz/Calendar-Application/actions/workflows/ci.yml)
 
-## Current Status
+## Project status — October 27, 2026
 
-StudySync is currently in the early development phase.
+StudySync is a calendar application with a React frontend connected to a Python FastAPI backend.
 
-The React frontend has been developed using React, Vite, and FullCalendar.
+- The frontend provides a calendar with month, week, and day views, navigation, and event creation, editing, and deletion.
+- The frontend sends event requests to the backend through its REST API.
+- The backend validates and serves events, and includes endpoints for filtering, upcoming events, scheduling conflicts, and event statistics.
+- The backend currently stores events in memory. Events are lost when the backend process restarts; persistent database storage has not been implemented.
+- GitHub Actions runs frontend linting, build, and tests on pushes and pull requests. After a successful run on `main`, it waits for the matching AWS Amplify frontend deployment and reports whether it is healthy.
 
-**Currently implemented frontend features:**
+## Technology
 
-- Interactive calendar with Month, Week, and Day views
-- Calendar navigation between dates
-- Add Event form for creating new events
-- Event titles and descriptions
-- Start and end date/time selection
-- Editing existing events
-- Deleting events
-- Validation of event titles and date/time ranges
-- Browser-based event persistence using localStorage
+- **Frontend:** React, Vite, JavaScript, FullCalendar
+- **Backend:** Python, FastAPI, Pydantic, Uvicorn
+- **Hosting and automation:** AWS Amplify for the frontend; GitHub Actions for CI and production deployment verification
 
-Events are currently stored locally in the user's browser. They remain available after refreshing the page but are not yet shared between users or synchronized with a backend database.
+## Prerequisites and Installation
 
-The Python backend is being developed separately from the React frontend. Backend integration and centralized database storage remain future development tasks.
+Before starting, install **Node.js 22 or newer** (which includes npm) and **Python 3.10 or newer**. Get Node.js from [nodejs.org](https://nodejs.org/) and Python from [python.org](https://www.python.org/).
 
-
-
-### Frontend
-
-- React - User interface and component management
-- Vite - Frontend development and build tool
-- JavaScript - Frontend programming
-- CSS - Application styling
-- FullCalendar - Interactive calendar, date navigation, and event display
-- localStorage - Temporary browser-based event persistence
-
-### Backend (Under Development)
-
-- Python - Planned backend programming and application logic
-- SQLite - Planned database storage
-- Canvas REST API - Planned integration for importing courses, assignments, and due dates
-
-### Clone the Repository
-
-Open a terminal and navigate to the location where you want to store the project.
-
-Then clone the repository:
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/Supazz/Calendar-Application.git
 cd Calendar-Application
 ```
 
-### Frontend Setup
+### 2. Install backend dependencies 
 
-Install the React dependencies:
+From the repository root, create and activate a virtual environment and install the pinned backend dependencies. 
+
+The virtual environment keeps project packages separate from other Python projects on the machine. 
+
+Ensure the Python virtual environment (.venv) is activated in the terminal by verifying that (.venv) appears at the beginning of the terminal prompt. The Python virtual environment is not required to be activated to install the frontend dependencies.
+
+**macOS/Linux**
 
 ```bash
-npm install
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r backend/requirements.txt
 ```
 
-## Running the Application
+**Windows PowerShell**
 
-The React frontend can currently be run independently using:
+```powershell
+py -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install -r backend/requirements.txt
+```
+
+If PowerShell blocks activation with an error such as `running scripts is disabled on this system`, run the following command in the same terminal before activating the environment:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\.venv\Scripts\Activate.ps1
+```
+
+This only changes the execution policy for the current PowerShell session, so it does not affect your machine-wide settings. To exit the virtual environment later, run:
+
+```bash
+deactivate
+```
+
+### 3. Install frontend dependencies
+
+```bash
+npm ci
+```
+This installs the frontend dependencies specified by the project's lockfile.
+
+
+## Run the application locally
+
+Run the backend and frontend in two separate terminals, both opened in the repository root (Calendar-Application).
+
+The frontend's development API URL defaults to http://127.0.0.1:8000, so no local .env file is required. 
+
+Before starting the backend, activate the Python virtual environment (.venv) in the backend terminal and verify that (.venv) appears at the beginning of the terminal prompt. The frontend terminal does not require the Python virtual environment to be activated.
+
+To activate the environment:
+
+**macOS/Linux**
+
+```bash
+source .venv/bin/activate
+```
+
+**Windows PowerShell**
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+### 1. Start the backend (Terminal 1)
+
+With the virtual environment activated, run:
+
+```bash
+python -m uvicorn main:app --app-dir backend --reload --host 127.0.0.1 --port 8000
+```
+The API is available at http://127.0.0.1:8000. Interactive API documentation is at http://127.0.0.1:8000/docs. 
+
+Keep this terminal running while using the app.
+
+### 2. Start the frontend (Terminal 2)
+
+In a second terminal, from the repository root:
 
 ```bash
 npm run dev
 ```
 
-Vite will provide a local URL where the application can be opened in a web browser.
+Open the local URL printed by Vite, usually `http://localhost:5173`. The backend allows the default Vite local origins on ports 5173–5175.
 
-To exit Vite, press Ctrl + C while in the terminal. 
+To stop either server, press `Ctrl+C` in its terminal. Because backend storage is in memory, restarting the backend clears the events.
 
-The backend is currently under development and is not yet fully connected to the React frontend.
+## Development commands
 
+### Frontend tests
 
+These tests use Node.js/npm and do **not** require Python, a running backend, or a Python virtual environment. From the repository root, install the locked JavaScript dependencies (once per checkout), then run the Vitest suite:
 
+```bash
+npm run test:run
+```
+If you have not installed the frontend dependencies yet, run npm ci first.
 
+`npm test` runs the same one-shot test suite. `npm run test:watch` keeps Vitest running and watches for changes. GitHub Actions runs `npm run test:run`.
 
-## Development Workflow
+### Backend Tests
 
-The project uses Scrum and is developed through sprints and product backlog items.
+These tests use Python and do **not** require Node.js/npm or a running backend server.
 
-Team members should:
-1. Create or select an issue describing the work to be completed.
-2. Create a feature branch for the work.
-3. Make and test changes on the feature branch.
-4. Commit changes using clear commit messages.
-5. Push the branch to GitHub.
-6. Open a pull request for review.
-7. Merge the completed work into the main branch after review.
+From the repository root, create and activate the virtual environment as described in Prerequisites and Installation and ensure the backend dependencies are installed.
 
-### Branches
+To activate the environment:
 
-- `main` - Main project branch
-- Feature branches - Used for individual features and changes
-- Frontend/backend branches may be used for larger areas of development
+**macOS/Linux**
 
-### Development Guidelines
+```bash
+source .venv/bin/activate
+```
 
-- Keep changes related to the issue or feature being developed.
-- Use descriptive commit messages.
-- Test changes before creating a pull request.
-- Do not commit passwords, API keys, or other sensitive information.
-- Keep documentation updated when project functionality or setup requirements change.
-- Communicate with the team before making major structural changes.
-- Create a separate branch for new features or significant changes.
-- Do not directly modify the main branch unless the team has agreed that the change should be made there.
+**Windows PowerShell**
 
+```powershell
+.venv\Scripts\Activate.ps1
+```
 
-## Future Development
+With the virtual environment activated, run unit tests as follows:
 
-- Connecting the React frontend to the Python backend
-- Implementing SQLite database storage
-- Replacing browser localStorage with backend-managed event persistence
-- Adding course management
-- Adding assignment and exam management
-- Implementing task priorities and estimated completion times
-- Allowing students to enter available study times
-- Implementing automated study schedule generation
-- Adding task completion and progress tracking
-- Improving calendar functionality and event categorization
-- Integrating the Canvas REST API
-- Exploring email integration
-- Supporting shared data across users
+**Windows (PowerShell)**
 
-## Team Members
+```powershell
+python -m unittest discover -s test/backend_tests -p "test_*.py"
+```
+
+**macOS/Linux**
+
+```bash
+python -m unittest discover -s test/backend_tests -p "test_*.py"
+```
+
+When finished, deactivate the virtual environment:
+
+```bash
+deactivate
+```
+
+### Frontend quality checks
+
+These optional checks also use Node.js/npm:
+
+```bash
+npm run lint
+npm run build
+```
+
+## CI/CD and production hosting
+
+The workflow is [`.github/workflows/ci.yml`](.github/workflows/ci.yml). On pushes and pull requests, it installs Node.js dependencies, runs linting, builds the frontend, and runs the frontend tests. On `main`, it also verifies the production deployment status in AWS Amplify.
+
+AWS and deployment values are configured as GitHub Actions **variables** for the `production` environment: `AWS_ROLE_ARN`, `AWS_REGION`, `AMPLIFY_APP_ID`, and `PRODUCTION_URL`. The IAM role must trust the GitHub OIDC provider and allow the Amplify deployment action to update the app.
+
+## Current limitations and next steps
+
+- Add persistent database storage so events survive backend restarts and can be shared across sessions.
+- Deploy the FastAPI backend and configure production CORS and the frontend's `VITE_API_URL`.
+- Connect additional StudySync features such as courses, assignments, and study planning to the API.
+- Explore Canvas integration after the core application and storage are established.
+
+## Development workflow
+
+The project uses Scrum and feature branches. Changes should be tested, pushed to GitHub, and reviewed in a pull request before merging into `main`.
+
+## Backlog
+
+Our backlog is tracked in GitHub Issues so the team can add, prioritize, and assign work as new features and tasks are identified. The current backlog includes planned enhancements, sprint items, and open engineering tasks for future development.
+
+View the active backlog, sprint tracking, and kanban board here:
+
+- [GitHub Issues](https://github.com/Software-Engineering-group-J/Calendar-Application/issues)
+- [Sprint 2 milestone / backlog](https://github.com/Software-Engineering-group-J/Calendar-Application/milestone/2)
+- [Kanban board](https://github.com/orgs/Software-Engineering-group-J/projects/1/views/1)
+
+## Group scheduling demo
+
+Each event has a **Show as: Busy / Free** setting, independent of participant
+count. Busy is the default (including older saved events). Overlapping busy
+events are rejected for both personal and group events. Free events may overlap
+and do not block later bookings. The setting applies to the entire event and
+all its participants; to represent partial attendance, record only the actual
+busy interval as a separate event. Editing preserves this setting.
+
+Open **Group scheduling** from the main navigation, or go directly to
+`/#group-scheduling`. The default Calendar page remains focused on the existing
+API-backed Team Schedule. Browser back/forward works between these views.
+
+The **Group scheduling** page is a browser-local prototype independent of the
+API-backed Team Schedule. Participants are manually managed, with unique
+IDs and distinct display names. There are no accounts or cross-device sharing.
+Local schedules persist in browser storage under `studysync-group-scheduling-v1`.
+Using a different browser or origin starts a separate schedule; clearing browser
+storage removes it.
+
+1. Add Alex, Sam, and Jordan as participants.
+2. Enter a busy event for Jordan, 10–11 AM, selecting only Jordan.
+3. Propose a group event for 10:30–11:30 AM with all three selected. Saving is
+   rejected and Jordan is identified as unavailable.
+4. Change the group event to 11 AM–noon and save. Events touching at their
+   boundaries are compatible.
+5. Refresh the page: the saved events remain. Edit the group event to verify all
+   participants are retained, or delete it to free their time.
+
+Return to Calendar to see local group events and busy times in purple alongside
+API events. They appear even if the backend is offline. Navigate to the event's
+date if it is outside the displayed month. Clicking a local event opens Group
+scheduling, where it can be edited or deleted. These local events are not
+uploaded to the API.
+
+Selecting one participant records busy time; selecting two or more creates a
+group event, without a fixed participant limit. Existing group events also block
+their participants' time. Editing excludes the event itself from comparison.
+Remove participants from their events before deleting participant records.
+
+`src/groupEvents.js` exports `compareCalendars(schedule)`, used by the form and
+the automated compatibility tests. Run `npm test` or `npm run test:run` to run
+Vitest, the same runner used by GitHub Actions. Tests cover the original two-user
+case, larger groups, a conflict in the last calendar, boundary times, invalid
+input, and the browser-local UI workflow. API responses are not required by this
+feature. The existing Team Schedule still needs a reachable backend.
+
+## Team
 
 - Diego Arauz
 - Carlos Garcia
