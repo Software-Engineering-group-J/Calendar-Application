@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 # for canvas
-from .canvasConnection import canvasConnection
+from canvasConnection import canvasConnection
 
 # for type hinting
 from canvasapi.assignment import Assignment
@@ -238,9 +238,9 @@ def assignment_or_quiz_to_event_input(canvasapiobject: Assignment|Quiz|NewQuiz) 
     NOTE: This conversion is one way and takes advantage of overlapping fields.
     It does not meaningfully represent the differences between these classes.'''
 
-    #Sanity check:
-    if type(canvasapiobject) not in [Assignment, Quiz, NewQuiz]:
-        raise TypeError(f"assignment_or_quiz_to_event_input: Type '{type(canvasapiobject)}' is not Assignment, Quiz, or NewQuiz")
+    #Sanity check: TEMPORARILY DISABLED FOR USE W/ DUMMY CLASS
+    #if type(canvasapiobject) not in [Assignment, Quiz, NewQuiz]:
+    #    raise TypeError(f"assignment_or_quiz_to_event_input: Type '{type(canvasapiobject)}' is not Assignment, Quiz, or NewQuiz")
 
     #Grab the desired event interval
     start = (
@@ -260,6 +260,9 @@ def assignment_or_quiz_to_event_input(canvasapiobject: Assignment|Quiz|NewQuiz) 
         or getattr(canvasapiobject, "lock_at_date", None)
         or start
     )
+
+    if end < start:
+        raise ValueError("assignment_or_quiz_to_event_input: End time is before start time!")
 
     if end is start: #normalize as one second interval when start and end are the same
         end = start + timedelta(seconds = 1)

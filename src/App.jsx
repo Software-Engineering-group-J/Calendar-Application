@@ -349,7 +349,7 @@ function App() {
           <p>Team Calendar & Event Management</p>
         </div>
 
-        <button type = "button" style = {styles.button} onClick={ ()=> setShowCanvasForm(true) } >Pull from Canvas key...</button>
+        <button type = "button" style = {styles.button} onClick={ ()=> setShowCanvasForm(true) } >Import Canvas</button>
 
         <button
           type="button"
