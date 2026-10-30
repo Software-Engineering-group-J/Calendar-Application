@@ -28,3 +28,4 @@ __pycache__/
 *.pyc
 .env
 *.dbgit 
+backend/studysync.db*
