@@ -1,8 +1,7 @@
 ### WARNING
 # As of writing, this module is still in the early testing phase and we don't have a dev key
 # We use personal API keys linked to our actual student accounts (for now)
-# For the purposes of the ticket review, I've attatched one of these keys
-# The key will expire after class, don't hack me zawg 🙏
+
 
 #Unit tests for canvasConnection
 import unittest
