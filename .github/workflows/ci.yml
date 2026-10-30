@@ -37,93 +37,49 @@ jobs:
       - name: Run frontend tests
         run: npm run test:run
 
-  production:
-    name: Verify Amplify production deployment
+  deploy:
+    name: Deploy frontend to AWS Amplify
     needs: frontend
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 55
-
+    timeout-minutes: 30
     permissions:
       contents: read
       id-token: write
-      deployments: write
-
-    environment:
-      name: production
-      url: ${{ vars.PRODUCTION_URL }}
 
     steps:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6.3.0
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
-      - name: Wait for matching Amplify job
-        id: find-job
-        shell: bash
-        env:
-          APP_ID: ${{ vars.AMPLIFY_APP_ID }}
-          GITHUB_SHA: ${{ github.sha }}
+      - name: Start Amplify deployment
+        id: amplify
         run: |
-          set -euo pipefail
+          JOB_ID=$(aws amplify start-job \
+            --app-id d24s67ki04sunq \
+            --branch-name main \
+            --job-type RELEASE \
+            --query 'jobSummary.jobId' \
+            --output text)
+          echo "job-id=$JOB_ID" >> "$GITHUB_OUTPUT"
 
-          echo "Waiting for Amplify to register commit $GITHUB_SHA"
-
-          for attempt in $(seq 1 60); do
-            JOB_ID=$(aws amplify list-jobs \
-              --app-id "$APP_ID" \
-              --branch-name main \
-              --max-results 50 \
-              --output json |
-              jq -r --arg sha "$GITHUB_SHA" \
-              '[.jobSummaries[] | select(.commitId == $sha)]
-              | sort_by(.startTime // 0) | last | .jobId // empty')
-
-            if [[ -n "$JOB_ID" ]]; then
-              echo "job_id=$JOB_ID" >> "$GITHUB_OUTPUT"
-              echo "Found Amplify job $JOB_ID"
-              exit 0
-            fi
-
-            sleep 15
-          done
-
-          echo "No Amplify job found for commit $GITHUB_SHA"
-          exit 1
-
-      - name: Wait for Amplify deployment to finish
-        shell: bash
+      - name: Wait for Amplify deployment
         env:
-          APP_ID: ${{ vars.AMPLIFY_APP_ID }}
-          JOB_ID: ${{ steps.find-job.outputs.job_id }}
+          JOB_ID: ${{ steps.amplify.outputs.job-id }}
         run: |
-          set -euo pipefail
-
-          for attempt in $(seq 1 120); do
+          while true; do
             STATUS=$(aws amplify get-job \
-              --app-id "$APP_ID" \
+              --app-id d24s67ki04sunq \
               --branch-name main \
               --job-id "$JOB_ID" \
               --query 'job.summary.status' \
               --output text)
-
-            echo "Amplify job $JOB_ID status: $STATUS"
-
+            echo "Amplify deployment status: $STATUS"
             case "$STATUS" in
-              SUCCEED)
-                echo "Amplify deployment succeeded."
-                exit 0
-                ;;
-              FAILED|CANCELLED)
-                echo "Amplify deployment ended with status: $STATUS"
-                exit 1
-                ;;
+              SUCCEED) exit 0 ;;
+              FAILED|CANCELLED) exit 1 ;;
+              *) sleep 15 ;;
             esac
-
-            sleep 15
           done
-
-          echo "Timed out waiting for Amplify job $JOB_ID"
-          exit 1
