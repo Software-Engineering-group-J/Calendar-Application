@@ -12,6 +12,17 @@ from contextlib import asynccontextmanager
 from backend.models.event import EventRecord
 from backend.database import create_tables, get_session
 from sqlmodel import Session, select
+# for canvas
+if __package__:
+    from .canvasConnection import canvasConnection
+else:
+    from canvasConnection import canvasConnection
+
+# for type hinting
+from canvasapi.assignment import Assignment
+from canvasapi.calendar_event import CalendarEvent
+from canvasapi.quiz import Quiz
+from canvasapi.new_quiz import NewQuiz
 
 # ============================================================
 # STUDYSYNC API CONFIGURATION
@@ -68,6 +79,7 @@ class Category(str, Enum):
     study = "study"
     assignment = "assignment"
     exam = "exam"
+    course = "course"
     meeting = "meeting"
     personal = "personal"
     other = "other"
@@ -97,6 +109,7 @@ class EventInput(BaseModel):
 
     location: Optional[str] = None
     course: Optional[str] = None
+    color: Optional[str] = None
 
     completed: bool = False
 
@@ -118,19 +131,27 @@ class EventUpdate(BaseModel):
 
     location: Optional[str] = None
     course: Optional[str] = None
+    color: Optional[str] = None
 
     completed: Optional[bool] = None
 
+class apiKeyMessage(BaseModel):
+    key: str = None
 
 # ============================================================
 # DATABASE STORAGE
 # ============================================================
 
-# Each request uses a session supplied by get_session.
+# Events are stored in memory for now.
+# Restarting the server clears this dictionary.
+# SQLite or PostgreSQL can replace this later.
+# While the database is missing, Canvas connections will also be stored here
 
+events: Dict[str, Event] = {}
+activeCanvasConnections: Dict[str, canvasConnection] = {}
 
 # ============================================================
-# HELPER FUNCTIONS
+# TIMEOPS HELPER FUNCTIONS
 # ============================================================
 
 def validate_event_times(start: datetime, end: datetime):
@@ -185,6 +206,122 @@ def database_values(event: EventInput) -> dict:
     values['end'] = normalized_utc(event.end).replace(tzinfo=None)
     return values
 
+# ============================================================
+# CANVAS HELPER METHODS
+# ============================================================
+
+def calendar_event_to_event_input( canvas_event: CalendarEvent ) -> EventInput:
+    '''Converts Canvas calendar events to the EventInput data model.
+    Sensible defaults for event status, priority, and category are set and labelled (since there is no true analog for them.)
+    NOTE: This method makes no effort to handle events that exist in the past.'''
+    workflow_state = getattr(
+        canvas_event,
+        "workflow_state",
+        "deleted"
+    )
+
+    match workflow_state: #Workflow_state exists, else getattr would have raised an error
+        case "active":
+            event_status = EventStatus.pending
+        case "locked": #Assume that locked = event date has passed
+            event_status = EventStatus.completed
+        case _: #Same as case "deleted"
+            event_status = EventStatus.cancelled
+
+    return EventInput(
+        title=canvas_event.title,
+        description=getattr(
+            canvas_event,
+            "description",
+            "",
+        ) or "No description provided.",
+        start=canvas_event.start_at_date, #start_at is string format, canvasapi stores datetime as start_at_date
+        end=canvas_event.end_at_date,
+        priority=Priority.medium, #Default
+        category=Category.other, #Default
+        status=event_status,
+        location=getattr(
+            canvas_event,
+            "location_name",
+            None,
+        ),
+        course=getattr(
+            canvas_event,
+            "context_name",
+            None,
+        ),
+        completed = (workflow_state == locked), #This is the same assumption we made above
+    )
+
+def assignment_or_quiz_to_event_input(canvasapiobject: Assignment|Quiz|NewQuiz) -> EventInput:
+    '''Converts Assignment, Quiz, and NewQuiz objects to EventInputs using reasonable defaults.
+    NOTE: This conversion is one way and takes advantage of overlapping fields.
+    It does not meaningfully represent the differences between these classes.'''
+
+    #Sanity check: TEMPORARILY DISABLED FOR USE W/ DUMMY CLASS
+    #if type(canvasapiobject) not in [Assignment, Quiz, NewQuiz]:
+    #    raise TypeError(f"assignment_or_quiz_to_event_input: Type '{type(canvasapiobject)}' is not Assignment, Quiz, or NewQuiz")
+
+    #Grab the desired event interval
+    start = (
+        getattr(canvasapiobject, "unlock_at_date", None)
+        or getattr(canvasapiobject, "due_at_date", None)
+        or getattr(canvasapiobject, "lock_at_date", None)
+        or getattr(canvasapiobject, "created_at_date", None)
+    )
+
+    if start is None:
+        raise ValueError(
+            "Assignment cannot be converted because it has no unlock_at, due_at, or lock_at value."
+        )
+
+    end = (
+        getattr(canvasapiobject, "due_at_date", None)
+        or getattr(canvasapiobject, "lock_at_date", None)
+        or start
+    )
+
+    if end < start:
+        raise ValueError("assignment_or_quiz_to_event_input: End time is before start time!")
+
+    if end is start: #normalize as one second interval when start and end are the same
+        end = start + timedelta(seconds = 1)
+
+    #Match specific values based on the type of canvasapiobject
+    #Values that vary: title, description, priority, category
+    if type(canvasapiobject) is Assignment:
+        event_title = canvasapiobject.name
+        event_description = getattr(canvasapiobject, "description", "") or ""
+        event_priority = Priority.medium
+        event_category = Category.assignment
+
+    elif type(canvasapiobject) is Quiz:
+        event_title = canvasapiobject.title
+        event_description = getattr(canvasapiobject, "description", "") or ""
+        event_priority = Priority.high
+        event_category = Category.exam
+
+    else: #Assumed type is newQuiz
+        event_title = canvasapiobject.title
+        event_description = getattr(canvasapiobject, "instructions", "") or ""
+        event_priority = Priority.high
+        event_category = Category.exam
+
+    course_id = getattr(canvasapiobject, "course_id", None)
+
+
+    return EventInput(
+        title=event_title,
+        description=event_description, #dynamic
+        start=start,
+        end=end,
+        priority=event_priority, #dynamic default
+        category=event_category, #dynamic default
+        status=EventStatus.pending, #default
+        location=None, #default
+        course=str(course_id) if course_id is not None else None,
+        completed=False,
+    )
 
 # ============================================================
 # HOME AND HEALTH CHECK
@@ -578,3 +715,61 @@ def delete_event(event_id: str, session: Session = Depends(get_session)):
         "message": "Event deleted successfully.",
         "id": event_id,
     }
+
+# ============================================================
+# Handle events from Canvas
+# ============================================================
+@app.post("/api/events/pullFromCanvas")
+def pullFromCanvas(CANVAS_API_KEY: apiKeyMessage):
+
+    '''Creates a new canvasConnection object from an API key, then reads and adds all assignments and quizzes as events.'''
+
+    CANVAS_API_KEY = CANVAS_API_KEY.key
+
+    if not CANVAS_API_KEY in activeCanvasConnections:
+        activeCanvasConnections[CANVAS_API_KEY] = canvasConnection(CANVAS_API_KEY)
+
+    workingConnection = activeCanvasConnections[CANVAS_API_KEY] #Alias for current Canvas connection
+    convertedEvents: list(EventInput) = [] #Storage for converted Assignments/Quizzes
+
+    #Try to load a bajillion courses, since this was written before I learned PaginatedList is (technically) iterable
+    workingConnection.loadCourses(untilFound = 1000)
+    workingConnection.loadCalendarEvents()
+
+
+    #Collect the three Canvas object types into their own lists
+    workingCourses = workingConnection.getLoadedCourses().keys()
+
+    assignmentsToAddList = []
+    quizzesToAddList = []
+    calendarEventsToAddList = workingConnection.getCalendarEvents()
+
+    for courseID in workingCourses:
+        courseContents = workingConnection.getContentsOfCourse(courseID)
+        assignmentsToAddList += courseContents["assignments"]
+        quizzesToAddList += courseContents["quizzes"]
+
+    #Iterate through lists, converting and combining into a unified EventInput list
+    #Right now, we are avoiding elements that don't have any date
+    for assignment in assignmentsToAddList:
+        try:
+            convertedEvents.append( assignment_or_quiz_to_event_input(assignment) )
+        except ValueError as e:
+            pass
+    for quiz in quizzesToAddList:
+        try:
+            convertedEvents.append( assignment_or_quiz_to_event_input(quiz) )
+        except ValueError as e:
+            pass
+    for calendarEvent in calendarEventsToAddList:
+        try:
+            convertedEvents.append( calendar_event_to_event_input(calendarEvent) )
+        except ValueError as e:
+            pass
+
+    #Add convertedEvents to the events dictionary (database in future)
+    for event in convertedEvents:
+        events[uuid4()] = event #[note to self] suspicious
+
+
+    return {"message": "Events pulled from Canvas."}
