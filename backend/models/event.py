@@ -43,5 +43,6 @@ class EventRecord(SQLModel, table=True):
 
     location: str | None = None
     course: str | None = None
+    color: str | None = None
 
     completed: bool = False

@@ -142,13 +142,8 @@ class apiKeyMessage(BaseModel):
 # DATABASE STORAGE
 # ============================================================
 
-# Events are stored in memory for now.
-# Restarting the server clears this dictionary.
-# SQLite or PostgreSQL can replace this later.
-# While the database is missing, Canvas connections will also be stored here
-
-events: Dict[str, Event] = {}
-activeCanvasConnections: Dict[str, canvasConnection] = {}
+# Event records persist in SQLite. Canvas API clients are cached per process.
+activeCanvasConnections: dict[str, canvasConnection] = {}
 
 # ============================================================
 # TIMEOPS HELPER FUNCTIONS
@@ -250,7 +245,7 @@ def calendar_event_to_event_input( canvas_event: CalendarEvent ) -> EventInput:
             "context_name",
             None,
         ),
-        completed = (workflow_state == locked), #This is the same assumption we made above
+        completed = (workflow_state == "locked"), #This is the same assumption we made above
     )
 
 def assignment_or_quiz_to_event_input(canvasapiobject: Assignment|Quiz|NewQuiz) -> EventInput:
@@ -720,7 +715,10 @@ def delete_event(event_id: str, session: Session = Depends(get_session)):
 # Handle events from Canvas
 # ============================================================
 @app.post("/api/events/pullFromCanvas")
-def pullFromCanvas(CANVAS_API_KEY: apiKeyMessage):
+def pullFromCanvas(
+    CANVAS_API_KEY: apiKeyMessage,
+    session: Session = Depends(get_session),
+):
 
     '''Creates a new canvasConnection object from an API key, then reads and adds all assignments and quizzes as events.'''
 
@@ -767,9 +765,14 @@ def pullFromCanvas(CANVAS_API_KEY: apiKeyMessage):
         except ValueError as e:
             pass
 
-    #Add convertedEvents to the events dictionary (database in future)
-    for event in convertedEvents:
-        events[uuid4()] = event #[note to self] suspicious
+    # Commit the whole import together so failures do not leave a partial batch.
+    records = [EventRecord(**database_values(event)) for event in convertedEvents]
+    try:
+        session.add_all(records)
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
 
 
     return {"message": "Events pulled from Canvas."}

@@ -9,7 +9,7 @@ StudySync is a calendar application with a React frontend connected to a Python 
 - The frontend provides a calendar with month, week, and day views, navigation, and event creation, editing, and deletion.
 - The frontend sends event requests to the backend through its REST API.
 - The backend validates and serves events, and includes endpoints for filtering, upcoming events, scheduling conflicts, and event statistics.
-- The backend currently stores events in memory. Events are lost when the backend process restarts; persistent database storage has not been implemented.
+- The backend stores API events and imported Canvas events in SQLite at `backend/studysync.db`. Events survive backend restarts. Each local checkout has its own database, ignored by Git.
 - GitHub Actions runs frontend linting, build, and tests on pushes and pull requests. After a successful run on `main`, it waits for the matching AWS Amplify frontend deployment and reports whether it is healthy.
 
 ## Technology
@@ -96,6 +96,16 @@ source .venv/bin/activate
 .venv\Scripts\Activate.ps1
 ```
 
+### SQLite storage
+
+Backend startup creates missing tables and adds the optional `color` column to
+older event tables automatically. Existing events are preserved, with no color
+until one is assigned. This upgrade is safe to run repeatedly. Back up an
+existing database before upgrading. Stop the backend before making a file copy
+of `backend/studysync.db`. Later schema changes require their own migrations.
+
+Group scheduling continues to use browser storage independently of API events.
+
 ### 1. Start the backend (Terminal 1)
 
 With the virtual environment activated, run:
@@ -117,7 +127,7 @@ npm run dev
 
 Open the local URL printed by Vite, usually `http://localhost:5173`. The backend allows the default Vite local origins on ports 5173–5175.
 
-To stop either server, press `Ctrl+C` in its terminal. Because backend storage is in memory, restarting the backend clears the events.
+To stop either server, press `Ctrl+C` in its terminal. SQLite events survive backend restarts. Canvas connections are recreated when needed after a restart.
 
 ## Development commands
 
@@ -189,7 +199,7 @@ AWS and deployment values are configured as GitHub Actions **variables** for the
 
 ## Current limitations and next steps
 
-- Add persistent database storage so events survive backend restarts and can be shared across sessions.
+- Configure persistent database storage and backups for the hosted backend.
 - Deploy the FastAPI backend and configure production CORS and the frontend's `VITE_API_URL`.
 - Connect additional StudySync features such as courses, assignments, and study planning to the API.
 - Explore Canvas integration after the core application and storage are established.

@@ -2,17 +2,10 @@ import unittest
 from datetime import datetime, timezone
 
 from backend import main
+from test.backend_tests.database_case import DatabaseTestCase
 
 
-class GetUserDeadlinesTests(unittest.TestCase):
-    def setUp(self):
-        self.saved_events = main.events.copy()
-        main.events.clear()
-
-    def tearDown(self):
-        main.events.clear()
-        main.events.update(self.saved_events)
-
+class GetUserDeadlinesTests(DatabaseTestCase):
     def test_getUserDeadlines(self):
         assignment_deadline = datetime(2026, 10, 16, 23, 59, tzinfo=timezone.utc)
         exam_deadline = datetime(2026, 10, 19, 8, 0, tzinfo=timezone.utc)
@@ -24,7 +17,8 @@ class GetUserDeadlinesTests(unittest.TestCase):
                 category=main.Category.assignment,
                 start=datetime(2026, 10, 14, 9, 0, tzinfo=timezone.utc),
                 end=assignment_deadline,
-            )
+            ),
+            session=self.session,
         )
         main.create_event(
             main.EventInput(
@@ -32,7 +26,8 @@ class GetUserDeadlinesTests(unittest.TestCase):
                 category=main.Category.exam,
                 start=datetime(2026, 10, 14, 10, 0, tzinfo=timezone.utc),
                 end=exam_deadline,
-            )
+            ),
+            session=self.session,
         )
         main.create_event(
             main.EventInput(
@@ -40,7 +35,8 @@ class GetUserDeadlinesTests(unittest.TestCase):
                 category=main.Category.meeting,
                 start=datetime(2026, 10, 14, 11, 0, tzinfo=timezone.utc),
                 end=meeting_end,
-            )
+            ),
+            session=self.session,
         )
 
         deadline_events = [
@@ -49,6 +45,7 @@ class GetUserDeadlinesTests(unittest.TestCase):
             for event in main.get_events(
                 category=category,
                 status_filter=None,
+                session=self.session,
             )["events"]
         ]
         deadlines = {event.title: event.end for event in deadline_events}
