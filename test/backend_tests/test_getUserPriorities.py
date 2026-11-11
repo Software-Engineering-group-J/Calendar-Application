@@ -2,17 +2,10 @@ import unittest
 from datetime import datetime, timezone
 
 from backend import main
+from test.backend_tests.database_case import DatabaseTestCase
 
 
-class GetUserPrioritiesTests(unittest.TestCase):
-    def setUp(self):
-        self.saved_events = main.events.copy()
-        main.events.clear()
-
-    def tearDown(self):
-        main.events.clear()
-        main.events.update(self.saved_events)
-
+class GetUserPrioritiesTests(DatabaseTestCase):
     def test_getUserPriorities(self):
         start = datetime(2026, 10, 14, 9, 0, tzinfo=timezone.utc)
         end = datetime(2026, 10, 14, 10, 0, tzinfo=timezone.utc)
@@ -30,7 +23,8 @@ class GetUserPrioritiesTests(unittest.TestCase):
                     priority=priority,
                     start=start,
                     end=end,
-                )
+                ),
+                session=self.session,
             )
 
         priority_events = [
@@ -39,6 +33,7 @@ class GetUserPrioritiesTests(unittest.TestCase):
             for event in main.get_events(
                 category=category,
                 status_filter=None,
+                session=self.session,
             )["events"]
         ]
         priorities = {event.title: event.priority for event in priority_events}
